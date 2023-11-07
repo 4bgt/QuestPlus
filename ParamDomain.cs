@@ -54,8 +54,8 @@ public class ParamDomain
 
         (this.lambda_start, this.lambda_end, this.lambda_steps, this.lambda) = FillArray(lambda, lambda_end, lambda_steps);
 
-        this.saturation = new double[1] { 0 };
-        this.Length = this.mu.Length * this.sigma.Length * this.saturation.Length * this.gamma.Length * this.lambda.Length;
+        this.saturation = new double[0] { };
+        this.Length = this.mu.Length * this.sigma.Length  * this.gamma.Length * this.lambda.Length;
     }
 
     public ParamDomain(float mu, float mu_end, int mu_steps, float sigma = 1, float sigma_end = 1, int sigma_steps = 1, float saturation = 1, float saturation_end = 0, int saturation_steps = 1) //fraglich, hier muss das Design aus Matlab eingebaut werden
@@ -66,9 +66,9 @@ public class ParamDomain
 
         (this.saturation_start, this.saturation_end, this.saturation_steps, this.saturation) = FillArray(saturation, saturation_end, saturation_steps);
 
-        this.gamma = new double[1] { 0 };
-        this.lambda = new double[1] { 0 };
-        this.Length = this.mu.Length * this.sigma.Length * this.saturation.Length * this.gamma.Length * this.lambda.Length;
+        this.gamma = new double[0] {  };
+        this.lambda = new double[0] { };
+        this.Length = this.mu.Length * this.sigma.Length * this.saturation.Length;
     }
 
     public (float, float, int, double[]) FillArray(float start, float end, int steps)
@@ -96,31 +96,4 @@ public class ParamDomain
         }
         return (start, end, steps, res);
     }
-
-    public void MakePrior()
-    {
-        for (int i = 0; i < mu_steps; i++)
-        {
-            mu[i] = 1 / (float)mu_steps; //evenly distributes the base mu probabilities before showing the first stimulus
-        }
-
-        for (int i = 0; i < sigma_steps; i++)
-        {
-            sigma[i] = 1 / (float)sigma_steps; //evenly distributes the base mu probabilities before showing the first stimulus
-        }
-
-        for (int i = 0; i < gamma_steps; i++)
-        {
-            gamma[i] = 1 / (float)gamma_steps; //evenly distributes the base mu probabilities before showing the first stimulus
-        }
-        for (int i = 0; i < lambda_steps; i++)
-        {
-            lambda[i] = 1 / (float)lambda_steps; //evenly distributes the base mu probabilities before showing the first stimulus
-        }
-        for (int i = 0; i < saturation_steps; i++)
-        {
-            saturation[i] = 1 / (float)saturation_steps; //evenly distributes the base mu probabilities before showing the first stimulus
-        }
-    }
-
 }

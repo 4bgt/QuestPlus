@@ -1,3 +1,4 @@
+using MathNet.Numerics.Distributions;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -56,13 +57,14 @@ public class Simulator : MonoBehaviour
         float stopCriterion = Mathf.PI / 120; // The value corresponding to the aforementioned stop rule 
 
         float minNTrials = 1; // the minimum amount of run trials before aborting measurement
-        float maxNTrials = 30; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
+        float maxNTrials = 100; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
 
-        float mu_start = -Mathf.PI / 45; // when estimating the true mu value, a starting point for this mu has to be given
-        float mu_end = Mathf.PI / 45; // also, an end point has to be given, to form the range of possible mu values
+        float mu_start = -2; // when estimating the true mu value, a starting point for this mu has to be given
+        float mu_end = 2; // also, an end point has to be given, to form the range of possible mu values
         int mu_steps = 30; // the sensitivity of the mu measurement, i.e. how many steps are in the mu range
+        
         float sigma_start = 0; // the deviation value for the density-functions used in this program
-        float sigma_end = 3;
+        float sigma_end = 0.5f;
         int sigma_steps = 10;
 
         float gamma_start = 0;
@@ -73,15 +75,19 @@ public class Simulator : MonoBehaviour
         float lambda_end = 0.02f;
         int lambda_steps = 3;
 
-        float saturation_start = 0;
+        float saturation_start = 0f;
         float saturation_end = 0.05f;
-        int saturation_steps = 5;
+        int saturation_steps = 10;
+
+        float true_mu = 1;
+        float true_sigma = 0.05f;
+        float true_saturation = 0f;
 
         ParamDomain paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
         ParamDomain paramDomain_ = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, gamma_start, gamma_end, gamma_steps, lambda_start, lambda_end, lambda_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
 
 
-        QPProperties.Add(new Properties(stimDomain, paramDomain_, respDomain, stopRule, stopCriterion, minNTrials, maxNTrials)); // builds a new prop object containing the parameters set above
+        QPProperties.Add(new Properties(stimDomain, paramDomain, respDomain, stopRule, stopCriterion, minNTrials, maxNTrials)); // builds a new prop object containing the parameters set above
 
         QPProperties.Last().Init(); // used to initialise the mu measurement pipeline by creating likelihood and prior probabilities
 
@@ -90,25 +96,23 @@ public class Simulator : MonoBehaviour
 
         bool isFinished = false;
         bool response;
-        float skill = Mathf.PI / 60;
         int counter = 0;
-        Debug.Log(QPProperties.Last().current_estimate_mu + "," + QPProperties.Last().current_estimate_sigma + "," + QPProperties.Last().current_estimate_gamma + "," + QPProperties.Last().current_estimate_lambda);
+        //Debug.Log(QPProperties.Last().current_estimate_mu + "," + QPProperties.Last().current_estimate_sigma + "," + QPProperties.Last().current_estimate_gamma + "," + QPProperties.Last().current_estimate_lambda);
         while (counter < 100 & !isFinished)
         {
             currentStimulus = QPProperties.Last().getTargetStim();
-            counter++;
-            if (currentStimulus.value >= skill)
-            {
-                response = true; //rechts
-                Debug.Log("Stimulus Value: " + currentStimulus.value + " Index: " + currentStimulus.index + ": rechts");
-            }
-            else
-            {
-                response = false; //links
-                Debug.Log("Stimulus Value: " + currentStimulus.value + " Index: " + currentStimulus.index + ": links");
-            }
-            Debug.Log(QPProperties.Last().current_estimate_mu + "," + QPProperties.Last().current_estimate_sigma + "," + QPProperties.Last().current_estimate_gamma + "," + QPProperties.Last().current_estimate_lambda);
-            Debug.Log(counter + " counter ");
+            double mean = 0;
+            double stdDev = 0.01;
+            MathNet.Numerics.Distributions.Normal normalDist = new Normal(mean, stdDev);
+            double randomGaussianValue = normalDist.Sample();
+            MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(true_mu, true_sigma);
+            double res = true_saturation + (1 - 2 * true_saturation) * (double)normal_dist.CumulativeDistribution(currentStimulus.value);
+            
+            response = Mathf.Round(Random.Range(0,1f)) <= res;
+            Debug.Log(currentStimulus.value + "," + res + " current stimulus + res");    
+
+            //Debug.Log(QPProperties.Last().current_estimate_mu + "," + QPProperties.Last().current_estimate_sigma + "," + QPProperties.Last().current_estimate_gamma + "," + QPProperties.Last().current_estimate_lambda);
+            //Debug.Log(counter + " counter ");
             isFinished = QPProperties.Last().UpdateEverything(response);
 
             mu_all_estimates = QPProperties.Last().history_estimate_mu.ToArray();
@@ -124,11 +128,11 @@ public class Simulator : MonoBehaviour
                 lambda_all_estimates = QPProperties.Last().history_estimate_lambda.ToArray();
             }
             se_all_estimates = QPProperties.Last().history_se.ToArray();
-            Debug.Log("is finished? " + isFinished);
+            //Debug.Log("is finished? " + isFinished);
 
         }
-        QPProperties.Last().History("Testdaten");
-        
+        QPProperties.Last().History("Testdaten_77");
+
     }
     private void Update()
     {
@@ -140,33 +144,33 @@ public class Simulator : MonoBehaviour
         marker_sigma = (float)sigma_all_estimates[marker_index];
         marker_mu = (float)mu_all_estimates[marker_index];
         marker_stimuli = (float)stimuli[marker_index];
-        InputDevice eyeTrackingDevice = default(InputDevice);
-        if (!eyeTrackingDevice.isValid)
-        {
-            List<InputDevice> InputDeviceList = new List<InputDevice>();
-            InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.EyeTracking, InputDeviceList);
-            if (InputDeviceList.Count > 0)
-            {
-                eyeTrackingDevice = InputDeviceList[0];
-                Debug.Log("works " + eyeTrackingDevice.name);
-            }
+        //InputDevice eyeTrackingDevice = default(InputDevice);
+        //if (!eyeTrackingDevice.isValid)
+        //{
+        //    List<InputDevice> InputDeviceList = new List<InputDevice>();
+        //    InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.EyeTracking, InputDeviceList);
+        //    if (InputDeviceList.Count > 0)
+        //    {
+        //        eyeTrackingDevice = InputDeviceList[0];
+        //        Debug.Log("works " + eyeTrackingDevice.name);
+        //    }
 
-            if (!eyeTrackingDevice.isValid)
-            {
-                Debug.LogWarning($"Unable to acquire eye tracking device. Have permissions been granted?");
-                return;
-            }
-        }
-        bool hasData = eyeTrackingDevice.TryGetFeatureValue(CommonUsages.isTracked, out bool isTracked);
-        hasData &= eyeTrackingDevice.TryGetFeatureValue(EyeTrackingUsages.gazePosition, out Vector3 position);
-        hasData &= eyeTrackingDevice.TryGetFeatureValue(EyeTrackingUsages.gazeRotation, out Quaternion rotation);
+        //    if (!eyeTrackingDevice.isValid)
+        //    {
+        //        Debug.LogWarning($"Unable to acquire eye tracking device. Have permissions been granted?");
+        //        return;
+        //    }
+        //}
+        //bool hasData = eyeTrackingDevice.TryGetFeatureValue(CommonUsages.isTracked, out bool isTracked);
+        //hasData &= eyeTrackingDevice.TryGetFeatureValue(EyeTrackingUsages.gazePosition, out Vector3 position);
+        //hasData &= eyeTrackingDevice.TryGetFeatureValue(EyeTrackingUsages.gazeRotation, out Quaternion rotation);
 
-        if (isTracked && hasData)
-        { 
+        //if (isTracked && hasData)
+        //{ 
 
-            transform.localPosition = position + (rotation * Vector3.forward);
-            transform.localRotation = rotation;
-        }
+        //    transform.localPosition = position + (rotation * Vector3.forward);
+        //    transform.localRotation = rotation;
+        //}
     }
 
     //// Update is called once per frame
@@ -790,23 +794,23 @@ public class SimulatorEditor : Editor
 
     private void OnEnable()
     {
-      mu_values = serializedObject.FindProperty("mu_all_estimates");
-            sigma_values = serializedObject.FindProperty("sigma_all_estimates");
+        mu_values = serializedObject.FindProperty("mu_all_estimates");
+        sigma_values = serializedObject.FindProperty("sigma_all_estimates");
 
-            saturation_values = serializedObject.FindProperty("saturation_all_values");
+        saturation_values = serializedObject.FindProperty("saturation_all_values");
 
-            stim_values = serializedObject.FindProperty("stimuli");
+        stim_values = serializedObject.FindProperty("stimuli");
 
-            gamma_values = serializedObject.FindProperty("gamma_all_values");
-            lambda_values = serializedObject.FindProperty("lambda_all_values");
+        gamma_values = serializedObject.FindProperty("gamma_all_values");
+        lambda_values = serializedObject.FindProperty("lambda_all_values");
 
-            se_values = serializedObject.FindProperty("se_all_estimates");
+        se_values = serializedObject.FindProperty("se_all_estimates");
 
-            grid_height_s = serializedObject.FindProperty("grid_height");
-            grid_width_s = serializedObject.FindProperty("grid_width");
-            height_s = serializedObject.FindProperty("height");
-            width_s = serializedObject.FindProperty("width");
-            marker_index = serializedObject.FindProperty("marker_index");
+        grid_height_s = serializedObject.FindProperty("grid_height");
+        grid_width_s = serializedObject.FindProperty("grid_width");
+        height_s = serializedObject.FindProperty("height");
+        width_s = serializedObject.FindProperty("width");
+        marker_index = serializedObject.FindProperty("marker_index");
 
     }
     private void OnDisable()
@@ -853,7 +857,7 @@ public class SimulatorEditor : Editor
                 Vector3[] all_values_vector = new Vector3[sigma_all_values.Length];
                 for (int i = 0; i < all_values_vector.Length; i++)
                 {
-                    all_values_vector[i] = new Vector3(i * ratio_x,(float) (height - ((sigma_all_values[i] - min) / range) * height));
+                    all_values_vector[i] = new Vector3(i * ratio_x, (float)(height - ((sigma_all_values[i] - min) / range) * height));
                     //Debug.Log(all_values_vector[i]);
                 }
                 Handles.color = Color.red;

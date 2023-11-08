@@ -44,7 +44,7 @@ public class Properties
         MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(mu, sigma);
         if (paramDomain.saturation.Length > 0)
         {
-            double res = saturation + (1 - saturation) * (double)normal_dist.CumulativeDistribution(x);
+            double res = saturation + (1 - 2*saturation) * (double)normal_dist.CumulativeDistribution(x);
             return (res);
         }
         else
@@ -489,7 +489,7 @@ public class Properties
                         {
                             if (index2 == current_index)
                             {
-                                Debug.Log(history_estimate_mu.Count);
+                                //Debug.Log(history_estimate_mu.Count);
                                 current_estimate_mu = paramDomain.mu[mu_idx];
                                 current_estimate_sigma = paramDomain.sigma[sigma_idx];
                                 current_estimate_gamma = paramDomain.gamma[gamma_idx];
@@ -540,28 +540,26 @@ public class Properties
         
         if (paramDomain.saturation.Length > 0)
         {
-            header = "subject_code, session, quest_id, item, response, stimuli, mu_estimated, sigma_estimated, saturation_estimated \n " ;
+            header = "subject_code, session, quest_id, stimuli, response,  mu_estimated, sigma_estimated, saturation_estimated \n ";
             info = info + header;
             for (int i = 0; i < history_stim.Count; i++)
             {
-                info = info+ $"{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_saturation[i]}\n";
+                info = info+ $"{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_saturation[i]}\n";
             }
             File.WriteAllText(Application.persistentDataPath + "/"+ filename + ".csv", info);
         }
         else
         {
-            header = "subject_code, session, quest_id, item, response, stimuli, mu_estimated, sigma_estimated, gamma_estimated, lambda_estimated \n";
+            header = "subject_code, session, quest_id, stimuli, response,  mu_estimated, sigma_estimated, gamma_estimated, lambda_estimated \n";
             info = info + header;
             for (int i = 0; i < history_stim.Count; i++)
             {
-                info = info + $"{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_gamma[i]}, {this.history_estimate_lambda[i]}\n";
+                info = info + $"{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_gamma[i]}, {this.history_estimate_lambda[i]}\n";
             }
             File.WriteAllText(Application.persistentDataPath + "/" + filename + ".csv", info);
         }
         Debug.Log("File written and stored at: " + Application.persistentDataPath);
     }
-
-
 
 
     /*

@@ -2,8 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
-using System.Linq;
-using static UnityEditor.Experimental.AssetDatabaseExperimental.AssetDatabaseCounters;
+using System.Threading;
 
 public class Properties
 {
@@ -516,7 +515,7 @@ public class Properties
 
     public bool IsFinished()
     {
-        if (history_stim.Count > this.maxNTrials)
+        if (history_stim.Count >= this.maxNTrials)
         {
             this.all_done = true;
             return true;
@@ -529,8 +528,10 @@ public class Properties
 
     }
 
-    public void History(string filename, string subject_code = "", int session = 0, int quest_id = 0)
+    public void History(string filename, string subject_code = "", int session = 0, int quest_id = 0,bool persistent = false)
     {
+        Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
         if (this.all_done == true)
         {
             this.trials = this.history_stim.Count;
@@ -540,25 +541,34 @@ public class Properties
         
         if (paramDomain.saturation.Length > 0)
         {
-            header = "subject_code, session, quest_id, stimuli, response,  mu_estimated, sigma_estimated, saturation_estimated \n ";
+            header = "trial, subject_code, session, quest_id, stimuli, response,  mu_estimated, sigma_estimated, saturation_estimated \n ";
             info = info + header;
             for (int i = 0; i < history_stim.Count; i++)
             {
-                info = info+ $"{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_saturation[i]}\n";
+                info = info+ $"{i},{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_saturation[i]}\n";
             }
-            File.WriteAllText(Application.persistentDataPath + "/"+ filename + ".csv", info);
         }
         else
         {
-            header = "subject_code, session, quest_id, stimuli, response,  mu_estimated, sigma_estimated, gamma_estimated, lambda_estimated \n";
+            header = "trial, subject_code, session, quest_id, stimuli, response,  mu_estimated, sigma_estimated, gamma_estimated, lambda_estimated \n";
             info = info + header;
             for (int i = 0; i < history_stim.Count; i++)
             {
-                info = info + $"{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_gamma[i]}, {this.history_estimate_lambda[i]}\n";
+                info = info + $"{i},{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_gamma[i]}, {this.history_estimate_lambda[i]}\n";
             }
-            File.WriteAllText(Application.persistentDataPath + "/" + filename + ".csv", info);
         }
-        Debug.Log("File written and stored at: " + Application.persistentDataPath);
+
+        //Saving files
+        if (persistent)
+        {
+            File.WriteAllText(Application.persistentDataPath + "/" + filename + ".csv", info);
+            Debug.Log("Quest File saved to: " + Application.persistentDataPath);
+        }
+        else
+        {
+            File.WriteAllText(Application.streamingAssetsPath + "/" + filename + ".csv", info);
+            Debug.Log("Quest File saved to: " + Application.streamingAssetsPath);
+        }
     }
 
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using System.Threading;
+using System.Linq;
 
 public class Properties
 {
@@ -212,22 +213,35 @@ public class Properties
 
         int idx = 0;
         double tempValue = double.PositiveInfinity; // this for argument uses a very high float (positive infinity) and then cycles through all EH values to find the smallest one. It is brute-force and I like it
+        List<int> equalEH = new List<int>();
         for (int s = 0; s < this.stimDomain.Length; s++)
         {
-            //Debug.Log(EH[s] + " entropy an der stelle " + s);
             if (EH[s] <= tempValue)
             {
                 // Debug.Log(EH[s] + " is smaller " + s);
+                //equalEH.Add(s);
                 tempValue = EH[s];
-                idx = s;
+                //idx = s;
 
             }
         }
-        //Debug.Log(tempValue);
+        for (int s = 0; s < this.stimDomain.Length; s++)
+        {
+            if (EH[s] == tempValue)
+            {
+                // Debug.Log(EH[s] + " is smaller " + s);
+                equalEH.Add(s);
+                //tempValue = EH[s];
+                //idx = s;
+
+            }
+        }
+        
+        idx = equalEH[(int)((equalEH.Count-1) / 2)];
+        
 
         TargetStimulus res = new TargetStimulus(stimDomain[idx], idx); //the resulting target stimulus is returned as (stimulus value, stimulus index)
         this.current_stim_ID = idx;
-        Debug.Log(res.value);
         return (res);
 
     }

@@ -150,6 +150,7 @@ public class Simulator : MonoBehaviour
         marker_stimuli = (float)stimuli[marker_index];
     }
 }
+#if UNITY_EDITOR
 
 [CustomEditor(typeof(Simulator))]
 [CanEditMultipleObjects]
@@ -425,4 +426,4 @@ public class SimulatorEditor : Editor
     }
 }
 
-
+#endif

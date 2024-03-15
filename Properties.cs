@@ -38,13 +38,14 @@ public class Properties
     public double current_estimate_saturation;
     public int trials;
     public bool all_done;
+    public string start_mode;
 
     public double Funktion(double x, double mu, double sigma, double gamma = 0, double lambda = 0, double saturation = 0) // function that builds the used cumulative distribution based on x (the stimulus), mu (the subjects ability) and sigma (standard deviation)
     {
         MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(mu, sigma);
         if (paramDomain.saturation.Length > 0)
         {
-            double res = saturation + (1 - 2*saturation) * (double)normal_dist.CumulativeDistribution(x);
+            double res = saturation + (1 - 2 * saturation) * (double)normal_dist.CumulativeDistribution(x);
             return (res);
         }
         else
@@ -221,25 +222,50 @@ public class Properties
                 // Debug.Log(EH[s] + " is smaller " + s);
                 //equalEH.Add(s);
                 tempValue = EH[s];
+                //Debug.Log(tempValue);
                 //idx = s;
 
             }
         }
         for (int s = 0; s < this.stimDomain.Length; s++)
         {
+           // Debug.Log(" "+(EH[s] == tempValue )+ EH[s] + tempValue);
             if (EH[s] == tempValue)
             {
                 // Debug.Log(EH[s] + " is smaller " + s);
                 equalEH.Add(s);
                 //tempValue = EH[s];
                 //idx = s;
-
             }
         }
-        
-        idx = equalEH[(int)((equalEH.Count-1) / 2)];
+        //Debug.Log("Count: "+equalEH.Count);
+
         
 
+        switch (start_mode)
+        {
+            case "median":
+                idx = equalEH[(int)((equalEH.Count - 1) / 2)];
+                break;
+            case "min":
+                idx = equalEH[0];
+                break;
+            case "max":
+                idx = equalEH[(equalEH.Count - 1)];
+                break;
+            case "1_quartil":
+                idx = equalEH[(int)((equalEH.Count - 1) / 4)];
+                //Debug.Log("1," + (int)((equalEH.Count - 1) / 4));
+                break;
+            case "3_quartil":
+                idx = equalEH[(int)((equalEH.Count - 1) * 0.75)];
+                //Debug.Log("3,"+ (int)((equalEH.Count - 1) * 0.75));
+                break;
+            default:
+                Debug.LogWarning("No start_mode selected. Defaulting to median.");
+                idx = equalEH[(int)((equalEH.Count - 1) / 2)];
+                break;
+        }
         TargetStimulus res = new TargetStimulus(stimDomain[idx], idx); //the resulting target stimulus is returned as (stimulus value, stimulus index)
         this.current_stim_ID = idx;
         return (res);
@@ -379,7 +405,7 @@ public class Properties
                         temp[0, index] = System.Math.Pow(this.paramDomain.mu[mu_idx] - estimate[0], 2);
                         temp[1, index] = System.Math.Pow(this.paramDomain.sigma[sigma_idx] - estimate[1], 2);
                         temp[2, index] = System.Math.Pow(this.paramDomain.saturation[saturation_idx] - estimate[2], 2);
-                        
+
                         index++;
                     }
                 }
@@ -408,7 +434,7 @@ public class Properties
                 }
             }
         }
-        
+
         //for (int p = 0; p < this.posterior.Length; p++)
         //{
         //    temp[0, p] = System.Math.Pow(this.paramDomain.mu[p] - estimate[0], 2);
@@ -439,13 +465,13 @@ public class Properties
                 //Debug.Log(p);
                 //Debug.Log(mean[p]);
             }
-            
+
             mean[p] = System.Math.Sqrt(mean[p]);
         }
 
-        
         double current_value = double.MaxValue;
         int current_index = 0;
+
 
         for (int p = 0; p < this.posterior.Length; p++)
         {
@@ -456,12 +482,6 @@ public class Properties
             }
         }
         //Debug.Log(current_index + "current index");
-
-
-
-
-
-
 
         int index2 = 0;
         if (paramDomain.saturation.Length > 0)
@@ -481,9 +501,9 @@ public class Properties
                             this.history_estimate_mu.Add(current_estimate_mu);
                             this.history_estimate_sigma.Add(current_estimate_sigma);
                             this.history_estimate_saturation.Add(current_estimate_saturation);
-                            
-                            return ( new double[3] { current_estimate_mu, current_estimate_sigma, current_estimate_saturation });
-                          //  break;
+
+                            return (new double[3] { current_estimate_mu, current_estimate_sigma, current_estimate_saturation });
+                            //  break;
                         }
                         index2++;
                     }
@@ -512,9 +532,9 @@ public class Properties
                                 this.history_estimate_gamma.Add(current_estimate_gamma);
                                 this.history_estimate_lambda.Add(current_estimate_lambda);
 
-                                
+
                                 return (new double[4] { current_estimate_mu, current_estimate_sigma, current_estimate_gamma, current_estimate_lambda });
-                               
+
                             }
                             index2++;
                         }
@@ -542,7 +562,7 @@ public class Properties
 
     }
 
-    public void History(string filename, string subject_code = "", int session = 0, int quest_id = 0,bool persistent = false)
+    public void History(string filename, string subject_code = "", int session = 0, int quest_id = 0, bool persistent = false)
     {
         Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
@@ -552,14 +572,14 @@ public class Properties
         }
         var info = "";
         string header = "";
-        
+
         if (paramDomain.saturation.Length > 0)
         {
             header = "trial, subject_code, session, quest_id, stimuli, response,  mu_estimated, sigma_estimated, saturation_estimated \n ";
             info = info + header;
             for (int i = 0; i < history_stim.Count; i++)
             {
-                info = info+ $"{i},{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_saturation[i]}\n";
+                info = info + $"{i},{subject_code},{session},{quest_id},{this.history_stim[i]},{this.history_resp[i]},{this.history_estimate_mu[i]},{this.history_estimate_sigma[i]},{this.history_estimate_saturation[i]}\n";
             }
         }
         else
@@ -628,11 +648,11 @@ public class Properties
         current_estimate_saturation = 0;
         trials = 0;
         all_done = false;
-
+        start_mode = "";
     }
 
     //Constructor
-    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string[] stopRule, float stopCriterion, float minNTrials, float maxNTrials, double[,,] likelihood, double[] posterior, List<float> history_stim, List<float> history_resp, List<double> history_estimate_mu, List<double> history_estimate_sigma, List<double> history_estimate_gamma, List<double> history_estimate_lambda, List<double> history_estimate_saturation, List<float> history_se)
+    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string[] stopRule, float stopCriterion, float minNTrials, float maxNTrials, double[,,] likelihood, double[] posterior, List<float> history_stim, List<float> history_resp, List<double> history_estimate_mu, List<double> history_estimate_sigma, List<double> history_estimate_gamma, List<double> history_estimate_lambda, List<double> history_estimate_saturation, List<float> history_se, string start_mode = "")
     {
 
         this.stimDomain = stimDomain;
@@ -661,8 +681,9 @@ public class Properties
         current_estimate_saturation = 0;
         this.trials = 0;
         this.all_done = false;
+        this.start_mode = start_mode;
     }
-    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string[] stopRule, float stopCriterion, float minNTrials = 1, float maxNTrials = 10)
+    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string[] stopRule, float stopCriterion, float minNTrials = 1, float maxNTrials = 10, string start_mode = "")
     {
 
         this.stimDomain = stimDomain;
@@ -691,5 +712,6 @@ public class Properties
         current_estimate_saturation = 0;
         this.trials = 0;
         this.all_done = false;
+        this.start_mode = start_mode;
     }
 }

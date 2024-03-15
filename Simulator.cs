@@ -37,9 +37,15 @@ public class Simulator : MonoBehaviour
     {
         //set up quest run
         QPProperties = new List<Properties>();
+<<<<<<< Updated upstream
         float stimDomainMin = 0f;
         float stimDomainMax = 0.21f;
         const int splitValue = 10;
+=======
+        float stimDomainMin = 0;
+        float stimDomainMax = 6;
+        const int splitValue = 50;
+>>>>>>> Stashed changes
 
         float[] stimDomain = new float[splitValue];
         float step = (stimDomainMax - stimDomainMin) / (splitValue - 1);
@@ -57,9 +63,15 @@ public class Simulator : MonoBehaviour
         float minNTrials = 1; // the minimum amount of run trials before aborting measurement
         float maxNTrials = 100; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
 
+<<<<<<< Updated upstream
         float mu_start = 0f; // when estimating the true mu value, a starting point for this mu has to be given
         float mu_end = 0.21f; // also, an end point has to be given, to form the range of possible mu values
         int mu_steps = 10; // the sensitivity of the mu measurement, i.e. how many steps are in the mu range
+=======
+        float mu_start = 0; // when estimating the true mu value, a starting point for this mu has to be given
+        float mu_end = 4; // also, an end point has to be given, to form the range of possible mu values
+        int mu_steps = 30; // the sensitivity of the mu measurement, i.e. how many steps are in the mu range
+>>>>>>> Stashed changes
 
         float sigma_start = 0; // the deviation value for the density-functions used in this program
         float sigma_end = 0.2f;
@@ -133,7 +145,11 @@ public class Simulator : MonoBehaviour
         }
 
         //save data to csv
+<<<<<<< Updated upstream
         QPProperties.Last().History("Testdaten_77", "1");
+=======
+        QPProperties.Last().History("Testdaten_mu0_4_sigma0_4");
+>>>>>>> Stashed changes
 
     }
     private void Update()

@@ -284,7 +284,17 @@ public class Properties
 
         for (int p = 0; p < paramDomain.Length; p++)
         {
-            this.posterior[p] = this.posterior[p] * this.likelihoods[this.current_stim_ID, p, response_int];
+            // as in the original matlab implementation negative values were not correctly dealt with, we tried and found a workaround for this by switching the response_int value that we feed into the likelihood, thereby effectively avoiding a scenario were Quest+ would run into consecuitevly more negative values
+            // this is still to be confirmed by simulations. the original code has no if statement and looks like this: "this.posterior[p] = this.posterior[p] * this.likelihoods[this.current_stim_ID, p, response_int];"
+            if (this.stimDomain[current_stim_ID] < 0)
+            {
+                this.posterior[p] = this.posterior[p] * this.likelihoods[this.current_stim_ID, p, - response_int]; 
+            }
+            else
+            {
+                this.posterior[p] = this.posterior[p] * this.likelihoods[this.current_stim_ID, p, response_int];
+            }
+            
             sum += this.posterior[p];
         }
         for (int p = 0; p < paramDomain.Length; p++) //muss nicht gleich lang wie 

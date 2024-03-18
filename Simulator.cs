@@ -1,6 +1,9 @@
 using MathNet.Numerics.Distributions;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEditor;
 using UnityEngine;
 
@@ -50,7 +53,7 @@ public class Simulator : MonoBehaviour
         // stimulus domain // the range of values that is presented as stimuli to the subject. Can be any typpe of array
 
         float[] respDomain = new float[2] { 0, 1 }; // response domain // the range of possible answers given by the subject upon being presented with the above stimulus. Currently only the 2AFC- scenario is supported
-        
+
         string[] stopRule = new string[1] { "stdev" }; // stop rule used to force the end of the presentation-update-cycle that estimates the subjects probable mu-value. Currently only the standard error as a stop rule is supported
         float stopCriterion = Mathf.PI / 120; // The value corresponding to the aforementioned stop rule 
 
@@ -83,15 +86,11 @@ public class Simulator : MonoBehaviour
         float true_gamma = 0.5f;
         float true_lambda = 0.03f;
 
-        //ParamDomain paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
-        ParamDomain paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, gamma_start, gamma_end, gamma_steps, lambda_start, lambda_end, lambda_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
-
+        ParamDomain paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
         QPProperties.Add(new Properties(stimDomain, paramDomain, respDomain, stopRule, stopCriterion, minNTrials, maxNTrials)); // builds a new prop object containing the parameters set above
 
         QPProperties.Last().Init(); // used to initialise the mu measurement pipeline by creating likelihood and prior probabilities
-
         TargetStimulus currentStimulus = new TargetStimulus();
-        //currentStimulus = QPProperties.Last().getTargetStim();
 
         bool isFinished = false;
         bool response;
@@ -136,9 +135,68 @@ public class Simulator : MonoBehaviour
         QPProperties.Last().History("Testdaten_77", "1");
 
     }
+
+    void SimulateQuestPlusSaturation(int maxTrials, float[] trueMu, float[] trueSigma, float[] trueSaturation, float[] mu, float[] sigma, float[] saturation, string fileName, string path = "")
+    {
+        SimulationResultsQuestPlus results = new SimulationResultsQuestPlus();
+
+        for (int trueMuIdx = 0; trueMuIdx < trueMu.Length; trueMuIdx++)
+        {
+            for (int trueSigmaIdx = 0; trueSigmaIdx < trueSigma.Length; trueSigmaIdx++)
+            {
+                for (int trueSaturationIdx = 0; trueSaturationIdx < trueSaturation.Length; trueSaturationIdx++)
+                {
+                    for (int trial = 0; trial < maxTrials; trial++)
+                    {
+                        // QuestPlusRun
+                    }
+                }
+            }
+        }
+        results.Save(fileName, path);
+    }
+    void SimulateConstantStimuliSaturation(int simulationRuns, int runs, float[] trueMu, float[] trueSigma, float[] trueSaturation, float[] steps, string fileName, string path = "")
+    {
+        SimulationResultsConstantStimuli results = new SimulationResultsConstantStimuli();
+
+
+        for (int trueSaturationIdx = 0; trueSaturationIdx < trueSaturation.Length; trueSaturationIdx++)
+        {
+            float saturation = trueSaturation[trueSaturationIdx];
+            float saturationX2 = (2 * saturation);
+
+            for (int trueMuIdx = 0; trueMuIdx < trueMu.Length; trueMuIdx++)
+            {
+                float mu = trueMu[trueMuIdx];
+                for (int trueSigmaIdx = 0; trueSigmaIdx < trueSigma.Length; trueSigmaIdx++)
+                {
+                    float sigma = trueSigma[trueSigmaIdx];
+                    for (int simulationRun = 0; simulationRun < simulationRuns; simulationRun++)
+                    {
+                        int trial = 0;
+                        for (int r = 0; r < runs; r++) // runs * steps = trials
+                        {
+                            MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(mu, sigma);
+
+                            // sample constant stimuli
+                            for (int stepIdx = 0; stepIdx < steps.Length; stepIdx++)
+                            {
+                                double res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(steps[stepIdx]);
+                                bool response = Random.Range(0, 1f) <= res;
+                                results.AddResult(simulationRun, trial, response, steps[stepIdx], mu, sigma, saturation);
+                                trial++;
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+        results.Save(fileName, path);
+    }
+
     private void Update()
     {
-
         //Update marker for live view in editor
         marker_index = (int)(((marker) / 100.0f) * mu_all_estimates.Length);
         if (marker_index >= mu_all_estimates.Length - 1)
@@ -150,6 +208,167 @@ public class Simulator : MonoBehaviour
         marker_stimuli = (float)stimuli[marker_index];
     }
 }
+
+class SimulationResultsConstantStimuli
+{
+    public List<int> simulationRuns;
+    public List<int> trials;
+    public List<bool> responses;
+    public List<float> stimuli;
+
+    public List<float> mus;
+    public List<float> sigmas;
+    public List<float> saturations;
+    public List<float> gammas;
+    public List<float> lambdas;
+
+    public SimulationResultsConstantStimuli()
+    {
+        this.simulationRuns = new List<int>();
+        this.trials = new List<int>();
+        this.responses = new List<bool>();
+        this.stimuli = new List<float>();
+
+        this.mus = new List<float>();
+        this.sigmas = new List<float>();
+        this.saturations = new List<float>();
+        this.gammas = new List<float>();
+        this.lambdas = new List<float>();
+    }
+
+    public void AddResult(int simulationRun, int trial, bool response, float stimulus, float mu, float sigma, float saturation = 0, float gamma = 0, float lambda = 0)
+    {
+        simulationRuns.Add(simulationRun);
+        trials.Add(trial);
+        responses.Add(response);
+        stimuli.Add(stimulus);
+
+        mus.Add(mu);
+        sigmas.Add(sigma);
+        saturations.Add(saturation);
+        gammas.Add(gamma);
+        lambdas.Add(lambda);
+    }
+
+    public void Save(string fileName, string path = "")
+    {
+        Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
+        if (path.Equals(""))
+        {
+            path = Application.persistentDataPath;
+        }
+
+        string header = "simulationRun,trial,response,stimulus,trueMu,trueSigma,trueSaturation,trueGamma,trueLambda\n "; // would be really nice to also fit psychometric function in C# to these results, but there is no simple library providing this, and I am too lazy to reimplement psignifit in c# atm
+        string file = "" + header;
+
+        for (int i = 0; i < simulationRuns.Count; i++)
+        {
+            file = file + $"{this.simulationRuns[i]},{this.trials[i]},{this.responses[i]},{this.stimuli[i]},{this.mus[i]},{this.sigmas[i]},{this.saturations[i]},{this.gammas[i]},{this.lambdas[i]}\n";
+        }
+
+        File.WriteAllText(path + "/" + fileName + ".csv", file);
+        Debug.Log("Constant Stimuli Simulation results saved to: " + path + "/" + fileName);
+    }
+}
+
+class SimulationResultsQuestPlus
+{
+    public List<int> simulationRuns;
+    public List<int> trials;
+    public List<bool> responses;
+    public List<float> stimuli;
+
+    public List<float> mus;
+    public List<float> sigmas;
+    public List<float> saturations;
+    public List<float> gammas;
+    public List<float> lambdas;
+
+    public List<float> QpMus;
+    public List<float> QpSigmas;
+    public List<float> QpSaturations;
+    public List<float> QpGammas;
+    public List<float> QpLambdas;
+
+    public SimulationResultsQuestPlus()
+    {
+        this.simulationRuns = new List<int>();
+        this.trials = new List<int>();
+        this.responses = new List<bool>();
+        this.stimuli = new List<float>();
+
+        this.mus = new List<float>();
+        this.sigmas = new List<float>();
+        this.saturations = new List<float>();
+        this.gammas = new List<float>();
+        this.lambdas = new List<float>();
+
+        this.QpMus = new List<float>();
+        this.QpSigmas = new List<float>();
+        this.QpSaturations = new List<float>();
+        this.QpGammas = new List<float>();
+        this.QpLambdas = new List<float>();
+    }
+
+    public void AddResult(int simulationRun, int trial, bool response, float stimulus, float mu, float currentMu, float sigma, float currentSigma, float saturation = 0, float currentSaturation = 0)
+    {
+        simulationRuns.Add(simulationRun);
+        trials.Add(trial);
+        responses.Add(response);
+        stimuli.Add(stimulus);
+
+        mus.Add(mu);
+        sigmas.Add(sigma);
+        saturations.Add(saturation);
+
+        QpMus.Add(currentMu);
+        QpSigmas.Add(currentSigma);
+        QpSaturations.Add(currentSaturation);
+    }
+
+    public void AddResult(int simulationRun, int trial, bool response, float stimulus, float mu, float currentMu, float sigma, float currentSigma, float gamma = 0, float currentGamma = 0, float lambda = 0, float currentLambda = 0)
+    {
+        simulationRuns.Add(simulationRun);
+        trials.Add(trial);
+        responses.Add(response);
+        stimuli.Add(stimulus);
+
+        mus.Add(mu);
+        sigmas.Add(sigma);
+        gammas.Add(gamma);
+        lambdas.Add(lambda);
+
+        QpMus.Add(currentMu);
+        QpSigmas.Add(currentSigma);
+        QpGammas.Add(currentGamma);
+        QpLambdas.Add(currentLambda);
+    }
+
+    public void Save(string fileName, string path = "")
+    {
+        Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
+        if (path.Equals(""))
+        {
+            path = Application.persistentDataPath;
+        }
+
+        string header = "simulationRun,trial,response,stimulus,trueMu,trueSigma,trueSaturation,trueGamma,trueLambda,estimatedMu,estimatedSigma,estimatedSaturation,estimatedGamma,estimatedLambda\n ";
+        string file = "" + header;
+
+        for (int i = 0; i < simulationRuns.Count; i++)
+        {
+            file = file + $"{this.simulationRuns[i]},{this.trials[i]},{this.responses[i]},{this.stimuli[i]},{this.mus[i]},{this.sigmas[i]},{this.saturations[i]},{this.gammas[i]},{this.lambdas[i]},{this.QpMus[i]},{this.QpSigmas[i]},,{this.QpSaturations[i]},{this.QpGammas[i]},,{this.QpLambdas[i]}\n";
+        }
+
+        File.WriteAllText(path + "/" + fileName + ".csv", file);
+        Debug.Log("QuestPlus Simulation results saved to: " + path + "/" + fileName);
+    }
+}
+
+
+#if UNITY_EDITOR
 
 [CustomEditor(typeof(Simulator))]
 [CanEditMultipleObjects]
@@ -362,7 +581,7 @@ public class SimulatorEditor : Editor
                 for (int i = 0; i < all_values_vector.Length; i++)
                 {
                     all_values_vector[i] = new Vector3(i * ratio_x, height - ((stim_all_values[i] - min_both) / range_both) * height);
-                    if (response_all_values[i]==1)
+                    if (response_all_values[i] == 1)
                     {
                         colors[i] = Color.blue;
                     }
@@ -372,7 +591,7 @@ public class SimulatorEditor : Editor
                     }
                 }
                 Handles.color = Color.yellow;
-                Handles.DrawAAPolyLine(width:3,colors: colors, all_values_vector);
+                Handles.DrawAAPolyLine(width: 3, colors: colors, all_values_vector);
 
 
             }
@@ -425,4 +644,4 @@ public class SimulatorEditor : Editor
     }
 }
 
-
+#endif

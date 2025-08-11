@@ -72,8 +72,9 @@ public class Simulator : MonoBehaviour
     {
         //set up quest run
         QPProperties = new List<Properties>();
-        float stimDomainMin = -Mathf.PI / 15;
-        float stimDomainMax = Mathf.PI / 15;
+
+        float stimDomainMin = 0f;
+        float stimDomainMax = 0.21f;
         const int splitValue = 10;
 
         float[] stimDomain = new float[splitValue];
@@ -90,6 +91,45 @@ public class Simulator : MonoBehaviour
         float stopCriterion = Mathf.PI / 120; // The value corresponding to the aforementioned stop rule 
 
         ResetParamDomain();
+
+        float minNTrials = 1; // the minimum amount of run trials before aborting measurement
+        float maxNTrials = 100; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
+
+        float mu_start = 0f; // when estimating the true mu value, a starting point for this mu has to be given
+        float mu_end = 0.21f; // also, an end point has to be given, to form the range of possible mu values
+        int mu_steps = 10; // the sensitivity of the mu measurement, i.e. how many steps are in the mu range
+
+        float sigma_start = 0; // the deviation value for the density-functions used in this program
+        float sigma_end = 0.2f;
+        int sigma_steps = 5;
+
+        float gamma_start = 0.5f;
+        float gamma_end = 0.5f;
+        int gamma_steps = 1;
+
+        float lambda_start = 0.06f;
+        float lambda_end = 0.06f;
+        int lambda_steps = 1;
+
+        float saturation_start = 0.05f;
+        float saturation_end = 0.05f;
+        int saturation_steps = 1;
+
+        float true_mu = 0.05f;
+        float true_sigma = 0.1f;
+        float true_saturation = 0f; //0.06 als Empfehlung
+        float true_gamma = 0.5f;
+        float true_lambda = 0.03f;
+
+        ParamDomain paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
+        QPProperties.Add(new Properties(stimDomain, paramDomain, respDomain, stopRule, stopCriterion, minNTrials, maxNTrials)); // builds a new prop object containing the parameters set above
+
+        QPProperties.Last().Init(); // used to initialise the mu measurement pipeline by creating likelihood and prior probabilities
+        TargetStimulus currentStimulus = new TargetStimulus();
+
+        bool isFinished = false;
+        bool response;
+        int counter = 0;
 
         //for (int r = 1; r <= 4; r++)
         //{
@@ -116,9 +156,13 @@ public class Simulator : MonoBehaviour
         lambda_end = 0.06f;
         lambda_steps = 1;
 
+
         saturation_start = 0.05f;
         saturation_end = 0.05f;
         saturation_steps = 1;
+        //save data to csv
+        QPProperties.Last().History("Testdaten_mu0_4_sigma0_4");
+
 
         paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
         paramDomains = new ParamDomain[1] { paramDomain };
@@ -299,7 +343,6 @@ public class Simulator : MonoBehaviour
     }
 }
 #if UNITY_EDITOR
-
 
 public class SimulationResultsConstantStimuli
 {

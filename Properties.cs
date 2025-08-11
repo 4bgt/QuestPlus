@@ -280,7 +280,6 @@ public class Properties
         for (int p = 0; p < paramDomain.Length; p++)
         {
             this.posterior[p] = this.posterior[p] * this.likelihoods[this.current_stim_ID, p, response_int];
-
             sum += this.posterior[p];
         }
         for (int p = 0; p < paramDomain.Length; p++) //muss nicht gleich lang wie 

@@ -10,9 +10,8 @@ public class Properties
     public float[] stimDomain;
     public ParamDomain paramDomain;
     public float[] respDomain;
-    public string[] stopRule;
+    public string stopRule;
     public float stopCriterion;
-
 
     public float minNTrials;
     public float maxNTrials;
@@ -53,15 +52,12 @@ public class Properties
             double res = gamma + (1 - gamma - lambda) * (double)normal_dist.CumulativeDistribution(x);
             return (res);
         }
-
-
     }
 
     //public Prior Next()
     public void Init() // initializing the likelihoods and priors
     {
         //float[][][] likelihoods;
-
         double[,,] likelihood = new double[stimDomain.Length, paramDomain.Length, respDomain.Length];
 
         for (int s = 0; s < stimDomain.Length; s++) //based on stimulus and parameter domain size
@@ -116,7 +112,6 @@ public class Properties
         //        }
         //    }
         //}
-
 
         this.likelihoods = likelihood;
 
@@ -229,7 +224,7 @@ public class Properties
         }
         for (int s = 0; s < this.stimDomain.Length; s++)
         {
-           // Debug.Log(" "+(EH[s] == tempValue )+ EH[s] + tempValue);
+            // Debug.Log(" "+(EH[s] == tempValue )+ EH[s] + tempValue);
             if (EH[s] == tempValue)
             {
                 // Debug.Log(EH[s] + " is smaller " + s);
@@ -240,7 +235,7 @@ public class Properties
         }
         //Debug.Log("Count: "+equalEH.Count);
 
-        
+
 
         switch (start_mode)
         {
@@ -268,8 +263,8 @@ public class Properties
         }
         TargetStimulus res = new TargetStimulus(stimDomain[idx], idx); //the resulting target stimulus is returned as (stimulus value, stimulus index)
         this.current_stim_ID = idx;
+        //Debug.Log(stimDomain[idx]);
         return (res);
-
     }
 
 
@@ -285,6 +280,7 @@ public class Properties
         for (int p = 0; p < paramDomain.Length; p++)
         {
             this.posterior[p] = this.posterior[p] * this.likelihoods[this.current_stim_ID, p, response_int];
+
             sum += this.posterior[p];
         }
         for (int p = 0; p < paramDomain.Length; p++) //muss nicht gleich lang wie 
@@ -343,7 +339,6 @@ public class Properties
             {
                 for (int sigma_idx = 0; sigma_idx < paramDomain.sigma.Length; sigma_idx++)
                 {
-
                     for (int mu_idx = 0; mu_idx < paramDomain.mu.Length; mu_idx++)
                     {
                         estimate[0] += this.posterior[index] * this.paramDomain.mu[mu_idx]; // posterior ist nicht unbedingt auch so lang wie paramDomain.mu und insbesondere können sigma und mu ja unterschiedlich viele Werte haben
@@ -362,7 +357,6 @@ public class Properties
                 {
                     for (int sigma_idx = 0; sigma_idx < paramDomain.sigma.Length; sigma_idx++)
                     {
-
                         for (int mu_idx = 0; mu_idx < paramDomain.mu.Length; mu_idx++)
                         {
                             estimate[0] += this.posterior[index] * this.paramDomain.mu[mu_idx]; // posterior ist nicht unbedingt auch so lang wie paramDomain.mu und insbesondere können sigma und mu ja unterschiedlich viele Werte haben
@@ -399,7 +393,6 @@ public class Properties
             {
                 for (int sigma_idx = 0; sigma_idx < paramDomain.sigma.Length; sigma_idx++)
                 {
-
                     for (int mu_idx = 0; mu_idx < paramDomain.mu.Length; mu_idx++)
                     {
                         temp[0, index] = System.Math.Pow(this.paramDomain.mu[mu_idx] - estimate[0], 2);
@@ -498,11 +491,12 @@ public class Properties
                             current_estimate_mu = paramDomain.mu[mu_idx];
                             current_estimate_sigma = paramDomain.sigma[sigma_idx];
                             current_estimate_saturation = paramDomain.saturation[saturation_idx];
+                            
                             this.history_estimate_mu.Add(current_estimate_mu);
                             this.history_estimate_sigma.Add(current_estimate_sigma);
                             this.history_estimate_saturation.Add(current_estimate_saturation);
 
-                            return (new double[3] { current_estimate_mu, current_estimate_sigma, current_estimate_saturation });
+                            return new double[3] { current_estimate_mu, current_estimate_sigma, current_estimate_saturation };
                             //  break;
                         }
                         index2++;
@@ -527,13 +521,14 @@ public class Properties
                                 current_estimate_sigma = paramDomain.sigma[sigma_idx];
                                 current_estimate_gamma = paramDomain.gamma[gamma_idx];
                                 current_estimate_lambda = paramDomain.lambda[lambda_idx];
+
                                 this.history_estimate_mu.Add(current_estimate_mu);
                                 this.history_estimate_sigma.Add(current_estimate_sigma);
                                 this.history_estimate_gamma.Add(current_estimate_gamma);
                                 this.history_estimate_lambda.Add(current_estimate_lambda);
 
 
-                                return (new double[4] { current_estimate_mu, current_estimate_sigma, current_estimate_gamma, current_estimate_lambda });
+                                return new double[4] { current_estimate_mu, current_estimate_sigma, current_estimate_gamma, current_estimate_lambda };
 
                             }
                             index2++;
@@ -542,9 +537,7 @@ public class Properties
                 }
             }
         }
-
         return (new double[0]);
-
     }
 
     public bool IsFinished()
@@ -559,10 +552,9 @@ public class Properties
             this.all_done = false;
             return false;
         }
-
     }
 
-    public void History(string filename, string subject_code = "", int session = 0, int quest_id = 0, bool persistent = false)
+    public void History(string filename, string path, string subject_code = "", int session = 0, int quest_id = 0)
     {
         Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
@@ -571,7 +563,7 @@ public class Properties
             this.trials = this.history_stim.Count;
         }
         var info = "";
-        string header = "";
+        string header;
 
         if (paramDomain.saturation.Length > 0)
         {
@@ -593,16 +585,13 @@ public class Properties
         }
 
         //Saving files
-        if (persistent)
+        if (path == "")
         {
-            File.WriteAllText(Application.persistentDataPath + "/" + filename + ".csv", info);
-            Debug.Log("Quest File saved to: " + Application.persistentDataPath);
+            path = Application.persistentDataPath;
         }
-        else
-        {
-            File.WriteAllText(Application.streamingAssetsPath + "/" + filename + ".csv", info);
-            Debug.Log("Quest File saved to: " + Application.streamingAssetsPath);
-        }
+
+        File.WriteAllText(path+ "/" + filename + ".csv", info);
+        Debug.Log("Quest File saved to: " + path);
     }
 
 
@@ -625,7 +614,7 @@ public class Properties
         stimDomain = new float[1] { 0 };
         paramDomain = new ParamDomain();
         respDomain = new float[1] { 0 };
-        stopRule = new string[1] { "" };
+        stopRule = "";
         stopCriterion = 0;
         minNTrials = 0;
         maxNTrials = 0;
@@ -652,7 +641,7 @@ public class Properties
     }
 
     //Constructor
-    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string[] stopRule, float stopCriterion, float minNTrials, float maxNTrials, double[,,] likelihood, double[] posterior, List<float> history_stim, List<float> history_resp, List<double> history_estimate_mu, List<double> history_estimate_sigma, List<double> history_estimate_gamma, List<double> history_estimate_lambda, List<double> history_estimate_saturation, List<float> history_se, string start_mode = "")
+    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string stopRule, float stopCriterion, float minNTrials, float maxNTrials, double[,,] likelihood, double[] posterior, List<float> history_stim, List<float> history_resp, List<double> history_estimate_mu, List<double> history_estimate_sigma, List<double> history_estimate_gamma, List<double> history_estimate_lambda, List<double> history_estimate_saturation, List<float> history_se, string start_mode = "")
     {
 
         this.stimDomain = stimDomain;
@@ -683,7 +672,19 @@ public class Properties
         this.all_done = false;
         this.start_mode = start_mode;
     }
-    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string[] stopRule, float stopCriterion, float minNTrials = 1, float maxNTrials = 10, string start_mode = "")
+
+    /// <summary>
+    /// This method is to construct all needed Properties for Quest+.
+    /// </summary>
+    /// <param name="stimDomain">Which stimuli are shown to the participant?</param>
+    /// <param name="paramDomain">Which parameters can Quest+ be fitted to?</param>
+    /// <param name="respDomain">Which responses can be given by the participant</param>
+    /// <param name="stopRule">(not implemented yet, defaults to use maxTrials), Which rules should Quest+ apply to stop the run.</param>
+    /// <param name="stopCriterion">(not implemented yet) Parameter to apply stop rule on</param>
+    /// <param name="minNTrials">(not implemented yet) Minimal number of trials until stop rule is applied.</param>
+    /// <param name="maxNTrials">Maximum number of trials until Quest+ stops</param>
+    /// <param name="start_mode">If likelihoods for multiple parameter combinations are equal: median, min, max, 1_quartil, 3_quartil </param>
+    public Properties(float[] stimDomain, ParamDomain paramDomain, float[] respDomain, string stopRule, float stopCriterion, float minNTrials = 1, float maxNTrials = 10, string start_mode = "")
     {
 
         this.stimDomain = stimDomain;

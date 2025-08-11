@@ -1,0 +1,89 @@
+---
+title: "Single Trials Quest+ Experiment"
+author: "Niklas Stein"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(quickpsy)
+
+print(getwd())
+
+temp = list.files(path = ".",pattern=".csv$")
+data = (lapply(temp, read.delim,sep=",",dec = "."))
+data = as.data.frame(do.call(rbind, data))
+data$response = data$response == 1
+data$subject = as.factor(data$subject_code)
+data$estimatedMu = data$mu_estimated
+data$estimatedSigma = data$sigma_estimated
+data$estimatedSaturation = data$saturation_estimated
+print(data)
+
+```
+
+## R Markdown
+
+This document was set up to find out what went wrong in Giulianos Experiment using our Quest+ Implementation.
+
+```{r experiment trial plots, echo=FALSE,message=F,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+for (session in unique(data$session))
+{
+  for (subject in unique(data$subject))
+  {
+    
+    
+    sampleRun = data[data$subject==subject & data$session == session & data$quest_id == 2,]
+    sampleRun$responseValue = "false"
+    sampleRun$responseValue[sampleRun$response] = "correct"
+    
+    p1 = ggplot(sampleRun,aes(x=trial,y=estimatedMu))+
+      geom_rect(aes(xmin = trial-0.5, xmax = trial+0.5,
+                    ymin = -Inf, ymax = Inf,
+                    fill = responseValue,alpha = 0.2),
+                size = 0.7,
+                show.legend = FALSE) +geom_line(aes(color = "mu"))+geom_line(aes(y=stimuli,color = "stimulus"))+
+      scale_fill_manual(values = c("correct" = "green4","false" =  "red3"))+
+      scale_color_manual(values = c(mu ="blue",stimulus = "black"))+ylim(-0.22,0.22)
+    ggsave(p1,file = paste0("QP",subject," ",session,".png"))
+    cat("Subject: ",subject, " Session: ",session)
+    plot (p1)
+  }
+  averageResponses = data %>% group_by(subject,stimuli) %>% summarize(Mean = mean(response),n = length(response))
+  
+  questPlot = ggplot(averageResponses,aes(stimuli,Mean,color=subject))+geom_point()
+  
+  
+  cat("Psychometric fit for Quest+ Experiment Data: trials: ",length(unique(data$trial))," Session: ",session," \n")
+  
+  allEstimatedParameters = data.frame()  
+  
+  
+  
+  for (subject in unique(data$subject))
+  {
+    currentRun = data[data$session == session & data$subject == subject,]
+    
+    estimatedParameters = c(subject = as.numeric(subject), mu = currentRun$estimatedMu[nrow(currentRun)],sigma = currentRun$estimatedSigma[nrow(currentRun)], saturation = currentRun$estimatedSaturation[nrow(currentRun)])
+    
+    allEstimatedParameters =rbind(allEstimatedParameters,estimatedParameters)
+    
+    estimatedDistribution = data.frame(x=seq(-0.21,0.21,0.001), y=estimatedParameters[4] + (1-estimatedParameters[4] - estimatedParameters[4]) * pnorm(seq(-0.21,0.21,0.001), estimatedParameters[2], estimatedParameters[3]),subject = as.factor(subject))
+    
+    segements = data.frame(x = estimatedParameters[2], y = 0.5,yend =0, subject = subject)
+    
+    questPlot = questPlot+geom_line(data= estimatedDistribution,aes(x,y))+geom_segment(data = segements,aes(x = x,xend=x,y = y,yend = yend) )+xlim(-0.21,0.21)  
+  }
+  names(allEstimatedParameters) = c ("subject","mu","sigma","saturation")
+  
+  print(format(allEstimatedParameters, digits=2,scientific=F))
+  
+  plot(questPlot)
+}
+```

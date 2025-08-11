@@ -1,0 +1,180 @@
+---
+title: "Simulation: Quest+ Adaptation Effect Comparison with varying Mu & Sigma"
+author: "Niklas Hypki"
+date: "`r Sys.Date()`"
+output: html_document
+---
+## Quest+ 
+
+```{r, echo=FALSE,message=F,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(quickpsy)
+library(plotrix)
+library(emmeans)
+baselineMu = 0 
+
+QuestPlus <- read_csv(paste0("Quest+adapt.csv"))
+all = data.frame() 
+for (subjects in c(5, 10,20,30)) #
+{
+  for (mu in unique(QuestPlus$trueMu)[unique(QuestPlus$trueMu)!= baselineMu])
+  {
+    for (sigma in unique(QuestPlus$trueSigma)[unique(QuestPlus$trueSigma)>0.01])
+    {
+      for (saturation in unique(QuestPlus$trueSaturation))
+      {
+        for (maxTrials in c(20,30,40,50,60,100)) #
+        {
+          ##### Quest+ #####
+          QuestPlusTest = QuestPlus[QuestPlus$trial<=maxTrials & QuestPlus$simulationRun<subjects,]
+          QuestPlusTest$simulationRun = as.factor(QuestPlusTest$simulationRun)
+          
+          ##### average responses #####
+          questPlusResult = QuestPlusTest[QuestPlusTest$trueMu == mu & QuestPlusTest$trueSigma ==sigma &QuestPlusTest$trueSaturation == saturation,]
+          
+          averageResponses = questPlusResult %>% group_by(simulationRun,stimulus) %>% summarize(Mean = mean(response),n = length(response))
+          
+          averageResponses$condition = "adapt"
+          
+          #baseline
+          questPlusResultBaseline = QuestPlusTest[QuestPlusTest$trueMu == baselineMu & QuestPlusTest$trueSigma ==sigma &QuestPlusTest$trueSaturation == saturation,]
+          
+          averageResponsesBaseline = questPlusResultBaseline %>% group_by(simulationRun,stimulus) %>% summarize(Mean = mean(response),n = length(response))
+          
+          averageResponsesBaseline$condition = "baseline"
+          
+          #combine
+          averageResponsesAll = bind_rows(averageResponses,averageResponsesBaseline)
+          averageResponsesAll$condition = as.factor(averageResponsesAll$condition)
+          
+          ##### plot responses and distribution #####
+          adaptPlot = ggplot(averageResponsesAll,aes(stimulus,Mean,color=condition))+geom_point()
+          
+          cat("Psychometric fit for Quest+ Simulation with: trials: ",max(questPlusResult$trial), " mu =",mu," sigma =",sigma,"saturation = ",saturation,"subjects = ", subjects, " \n")
+          
+          allEstimatedParameters = data.frame()  
+          
+          for (currentSimulationRun in unique(questPlusResult$simulationRun))
+          {
+            questPlusRun = questPlusResult[questPlusResult$simulationRun == currentSimulationRun,]
+            questPlusRunBaseline = questPlusResultBaseline[questPlusResultBaseline$simulationRun == currentSimulationRun,]
+            
+            estimatedParameters = c(run = as.numeric(currentSimulationRun), mu = questPlusRun$estimatedMu[nrow(questPlusRun)],sigma = questPlusRun$estimatedSigma[nrow(questPlusRun)], saturation = questPlusRun$estimatedSaturation[nrow(questPlusRun)],subjects = subjects,trueMu = mu, trueSigma = sigma,trials = maxTrials,adapt = 1, diff = questPlusRun$estimatedMu[nrow(questPlusRun)] - questPlusRunBaseline$estimatedMu[nrow(questPlusRunBaseline)] )
+            
+            estimatedParametersBaseline = c(run = as.numeric(currentSimulationRun), mu = questPlusRunBaseline$estimatedMu[nrow(questPlusRunBaseline)],sigma = questPlusRunBaseline$estimatedSigma[nrow(questPlusRunBaseline)], saturation = questPlusRunBaseline$estimatedSaturation[nrow(questPlusRunBaseline)],subjects = subjects,trueMu = baselineMu, trueSigma = sigma,trials = maxTrials,adapt = 0, diff = questPlusRun$estimatedMu[nrow(questPlusRun)] - questPlusRunBaseline$estimatedMu[nrow(questPlusRunBaseline)] )
+            
+            estimatedDistribution = data.frame(x=seq(-0.21,0.21,0.001), y=estimatedParameters[4] + (1-estimatedParameters[4] - estimatedParameters[4]) * pnorm(seq(-0.21,0.21,0.001), estimatedParameters[2], estimatedParameters[3]),simulationRun = currentSimulationRun,condition = "adapt")
+            
+            estimatedDistributionBaseline = data.frame(x=seq(-0.21,0.21,0.001), y=estimatedParametersBaseline[4] + (1-estimatedParametersBaseline[4] - estimatedParametersBaseline[4]) * pnorm(seq(-0.21,0.21,0.001), estimatedParametersBaseline[2], estimatedParametersBaseline[3]),simulationRun = currentSimulationRun,condition = "baseline")
+            
+            segements = data.frame(x = estimatedParameters[2], y = 0.5,yend =0, simulationRun = currentSimulationRun,condition = "adapt")
+            segementsBaseline = data.frame(x = estimatedParametersBaseline[2], y = 0.5,yend =0, simulationRun = currentSimulationRun,condition = "baseline")
+            
+            allEstimatedParameters =bind_rows(allEstimatedParameters,estimatedParameters)
+            allEstimatedParameters =bind_rows(allEstimatedParameters,estimatedParametersBaseline)
+            
+            adaptPlot = adaptPlot+geom_line(data= estimatedDistribution,aes(x,y)) +
+              geom_segment(data = segements,aes(x = x,xend=x,y = y,yend = yend) )+geom_vline(xintercept=mu)+xlim(-0.21,0.21)+
+              theme_bw()+ylab("Probability (rightward)") + xlab("Stimulus (PI / curvature gain radius)")
+            
+            adaptPlot = adaptPlot+geom_line(data= estimatedDistributionBaseline,aes(x,y)) +
+              geom_segment(data = segementsBaseline,aes(x = x,xend=x,y = y,yend = yend) )+
+              theme_bw()+ylab("Probability (rightward)") + xlab("Stimulus (PI / curvature gain radius)")
+            
+          }
+          names(allEstimatedParameters) = c ("run","mu","sigma","saturation","subjects","trueMu","trueSigma","nTrials","adapt", "diff")
+          
+          allEstimatedParameters$condition = as.factor(allEstimatedParameters$adapt)
+          levels(allEstimatedParameters$condition)= c("baseline","adapt")
+          
+          print(format(allEstimatedParameters[,1:11], digits=2,scientific=F))
+          
+          
+          #calculate one sided confidence interval
+          model1 <- lm(mu ~ condition, allEstimatedParameters)
+          
+          # Calculate one sided confidence interval (adapt > baseline)
+          intervals = emmeans(model1 ,~ condition,level =0.9)
+          summary(intervals)$lower.CL[1]
+          summary(intervals)$upper.CL[1]
+
+          # get p value from one-sided unpaired t-test
+            
+         res <- try(t.test(allEstimatedParameters$mu[allEstimatedParameters$condition=="adapt"],allEstimatedParameters$mu[allEstimatedParameters$condition=="baseline"],alternative= "greater")$p.value)
+         
+         if (!is.numeric(res))
+         {
+           res = 1
+         }
+        allEstimatedParameters$pValue = res
+          
+          
+          meanEstimates = data.frame("mean Mu" = mean(allEstimatedParameters$mu[allEstimatedParameters$condition == "adapt"]),"standard Error" = std.error(allEstimatedParameters$mu[allEstimatedParameters$condition == "adapt"]), "CILower" = summary(intervals)$lower.CL[1], "CIUpper" = summary(intervals)$upper.CL[1] )
+          
+          print("Adapt")
+          print(format(meanEstimates, digits=2,scientific=F))
+          
+          meanEstimatesBaseline = data.frame("mean Mu" = mean(allEstimatedParameters$mu[allEstimatedParameters$condition == "baseline"]),"standard Error" = std.error(allEstimatedParameters$mu[allEstimatedParameters$condition == "baseline"]), "CILower" = summary(intervals)$lower.CL[2], "CIUpper" = summary(intervals)$upper.CL[2])
+          
+          print("Baseline")
+          print(format(meanEstimatesBaseline, digits=2,scientific=F))
+          
+          test = adaptPlot+geom_point(data =meanEstimates,aes(x= mean.Mu,y= 0.5,color = "mean mu baseline"))+
+            geom_segment(data = meanEstimates,aes(x = CILower,xend=CIUpper,y = 0.5,yend = 0.5,color = "mean mu baseline"))+
+            geom_point(data =meanEstimatesBaseline,aes(x= mean.Mu,y= 0.5,color = "mean mu adapt"))+
+            geom_segment(data = meanEstimatesBaseline,aes(x = CILower,xend=CIUpper,y = 0.5,yend = 0.5,color = "mean mu adapt"))
+          
+          
+          plot(test)
+          all = bind_rows(all,allEstimatedParameters)
+          
+        }
+      }
+    }
+  }
+}
+
+backup = all
+
+all$error = abs(all$mu-all$trueMu)
+
+adapt = all[all$condition=="adapt",]
+
+averageAdapt = group_by(adapt, subjects,trueMu,trueSigma,nTrials) %>% summarise(meanError = mean(error,na.rm=T),meanPValue = mean(pValue))
+
+
+for (subjects in c(5, 10,20,30)) #
+{
+  for (maxTrials in c(20,30,40,50,60,100)) #
+  {
+    cat("Summary plots: subjects = ",subjects," trials = ",maxTrials, " \n")
+    currentSummary = averageAdapt[averageAdapt$subjects ==subjects & averageAdapt$nTrials == maxTrials,]
+    
+    summaryPlotPValue = ggplot(currentSummary,aes(trueMu,trueSigma,fill = meanPValue))+
+      geom_tile(color = "black")+theme_bw()+xlab("true Mu")+ylab("true Sigma")+ 
+      scale_fill_continuous(name="Adaptation p-value")
+    summaryPlotPValue
+    print(summaryPlotPValue)
+  }
+}
+
+
+for (subjects in c(5, 10,20,30)) #
+{
+  for (maxTrials in c(20,30,40,50,60,100)) #
+  {
+    cat("Summary plots: subjects = ",subjects," trials = ",maxTrials, " \n")
+    currentSummary = averageAdapt[averageAdapt$subjects ==subjects & averageAdapt$nTrials == maxTrials,]
+    
+    summaryPlotPValue = ggplot(currentSummary,aes(trueMu,trueSigma,fill = meanPValue<0.05))+
+      geom_tile(color = "black")+theme_bw()+xlab("true Mu")+ylab("true Sigma")+ 
+      scale_fill_discrete(name="Adaptation significant")
+    summaryPlotPValue
+    print(summaryPlotPValue)
+  }
+}
+```

@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.meta
+*.html
+.R.meta
+.csv.meta
+.html.meta
+.md.meta
+.cs.meta

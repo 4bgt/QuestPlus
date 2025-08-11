@@ -1,9 +1,7 @@
-using MathNet.Numerics.Distributions;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using Unity.VisualScripting.Antlr3.Runtime.Misc;
 using UnityEditor;
 using UnityEngine;
 
@@ -35,13 +33,47 @@ public class Simulator : MonoBehaviour
     public float marker_saturation = 0;
     public float marker_stimuli = 0;
 
+    public float true_mu = -0.1f;
+    public float true_sigma = 0.1f;
+    public float true_saturation = 0.05f; //0.06 als Empfehlung
+    public float true_gamma = 0.5f;
+    public float true_lambda = 0.03f;
+
+    public int minNTrials = 1; // the minimum amount of run trials before aborting measurement
+    public int maxNTrials = 100; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
+
+    float mu_start; // when estimating the true mu value, a starting point for this mu has to be given
+    float mu_end; // also, an end point has to be given, to form the range of possible mu values
+    int mu_steps; // the sensitivity of the mu measurement, i.e. how many steps are in the mu range
+
+    float sigma_start; // the width of the density-functions used in this program
+    float sigma_end;
+    int sigma_steps;
+
+    float gamma_start;
+    float gamma_end;
+    int gamma_steps;
+
+    float lambda_start;
+    float lambda_end;
+    int lambda_steps;
+
+    float saturation_start;
+    float saturation_end;
+    int saturation_steps;
+
+
+    ParamDomain paramDomain ; // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
+    ParamDomain[] paramDomains;
+
+
     // Start is called before the first frame update
     void Start()
     {
         //set up quest run
         QPProperties = new List<Properties>();
-        float stimDomainMin = 0f;
-        float stimDomainMax = 0.21f;
+        float stimDomainMin = -Mathf.PI / 15;
+        float stimDomainMax = Mathf.PI / 15;
         const int splitValue = 10;
 
         float[] stimDomain = new float[splitValue];
@@ -54,140 +86,198 @@ public class Simulator : MonoBehaviour
 
         float[] respDomain = new float[2] { 0, 1 }; // response domain // the range of possible answers given by the subject upon being presented with the above stimulus. Currently only the 2AFC- scenario is supported
 
-        string[] stopRule = new string[1] { "stdev" }; // stop rule used to force the end of the presentation-update-cycle that estimates the subjects probable mu-value. Currently only the standard error as a stop rule is supported
+        string stopRule = "stdev"; // stop rule used to force the end of the presentation-update-cycle that estimates the subjects probable mu-value. Currently only the standard error as a stop rule is supported
         float stopCriterion = Mathf.PI / 120; // The value corresponding to the aforementioned stop rule 
 
-        float minNTrials = 1; // the minimum amount of run trials before aborting measurement
-        float maxNTrials = 100; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
+        ResetParamDomain();
 
-        float mu_start = 0f; // when estimating the true mu value, a starting point for this mu has to be given
-        float mu_end = 0.21f; // also, an end point has to be given, to form the range of possible mu values
-        int mu_steps = 10; // the sensitivity of the mu measurement, i.e. how many steps are in the mu range
-
-        float sigma_start = 0; // the deviation value for the density-functions used in this program
-        float sigma_end = 0.2f;
-        int sigma_steps = 5;
-
-        float gamma_start = 0.5f;
-        float gamma_end = 0.5f;
-        int gamma_steps = 1;
-
-        float lambda_start = 0.06f;
-        float lambda_end = 0.06f;
-        int lambda_steps = 1;
-
-        float saturation_start = 0.05f;
-        float saturation_end = 0.05f;
-        int saturation_steps = 1;
-
-        float true_mu = 0.05f;
-        float true_sigma = 0.1f;
-        float true_saturation = 0f; //0.06 als Empfehlung
-        float true_gamma = 0.5f;
-        float true_lambda = 0.03f;
-
-        ParamDomain paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
-        QPProperties.Add(new Properties(stimDomain, paramDomain, respDomain, stopRule, stopCriterion, minNTrials, maxNTrials)); // builds a new prop object containing the parameters set above
-
-        QPProperties.Last().Init(); // used to initialise the mu measurement pipeline by creating likelihood and prior probabilities
-        TargetStimulus currentStimulus = new TargetStimulus();
-
-        bool isFinished = false;
-        bool response;
-        int counter = 0;
-
-        //simulating quest run
-        while (counter < 500 & !isFinished)
-        {
-            //get stimulus
-            currentStimulus = QPProperties.Last().getTargetStim();
-
-            //calculate response based on true cummulative distribution
-            MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(true_mu, true_sigma);
-            double res = true_gamma + (1 - true_gamma - true_lambda) * (double)normal_dist.CumulativeDistribution(currentStimulus.value);
-            //double res = true_saturation + (1 - true_saturation - true_saturation) * (double)normal_dist.CumulativeDistribution(currentStimulus.value);
-
-            response = Random.Range(0, 1f) <= res;
-            Debug.Log(currentStimulus.value + "," + res + " current stimulus + res");
-
-            //answer to QuestPlus and Update
-            isFinished = QPProperties.Last().UpdateEverything(response);
-
-            //updating estimated parameters
-            mu_all_estimates = QPProperties.Last().history_estimate_mu.ToArray();
-            sigma_all_estimates = QPProperties.Last().history_estimate_sigma.ToArray();
-            stimuli = QPProperties.Last().history_stim.ToArray();
-            if (QPProperties.Last().paramDomain.saturation.Length > 0)
-            {
-                saturation_all_estimates = QPProperties.Last().history_estimate_saturation.ToArray();
-            }
-            else
-            {
-                gamma_all_estimates = QPProperties.Last().history_estimate_gamma.ToArray();
-                lambda_all_estimates = QPProperties.Last().history_estimate_lambda.ToArray();
-            }
-            responses = QPProperties.Last().history_resp.ToArray();
-
-            counter++;
-        }
-
-        //save data to csv
-        QPProperties.Last().History("Testdaten_77", "1");
-
+        //for (int r = 1; r <= 4; r++)
+        //{
+        //    SimulateConstantStimuliSaturation(30, r, new float[] { -0.1f,0.1f }, new float[] { 0.001f,0.1f,0.2f,1 }, new float[] { true_saturation }, stimDomain, "constantStimuliReportingError"+r, Application.persistentDataPath);
+        //}
+        SimulateQuestPlusSaturation(30, maxNTrials, new float[] { 0, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f, 0.09f, 0.1f, 0.11f, 0.12f, 0.13f, 0.14f, 0.15f, 0.2f }, new float[] { 0.001f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1 }, new float[] { true_saturation }, stimDomain, paramDomains, "Quest+", Application.persistentDataPath);
     }
 
-    void SimulateQuestPlusSaturation(int maxTrials, float[] trueMu, float[] trueSigma, float[] trueSaturation, float[] mu, float[] sigma, float[] saturation, string fileName, string path = "")
+    void ResetParamDomain()
+    {
+        mu_start = -Mathf.PI / 15; // when estimating the true mu value, a starting point for this mu has to be given
+        mu_end = Mathf.PI / 15; // also, an end point has to be given, to form the range of possible mu values
+        mu_steps = 25; // the sensitivity of the mu measurement, i.e. how many steps are in the mu range
+
+        sigma_start = 0.3f; // the width of the density-functions used in this program
+        sigma_end = 0.3f;
+        sigma_steps = 1;
+
+        gamma_start = 0.5f;
+        gamma_end = 0.5f;
+        gamma_steps = 1;
+
+        lambda_start = 0.06f;
+        lambda_end = 0.06f;
+        lambda_steps = 1;
+
+        saturation_start = 0.05f;
+        saturation_end = 0.05f;
+        saturation_steps = 1;
+
+        paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
+        paramDomains = new ParamDomain[1] { paramDomain };
+    }
+
+
+    /// <summary>
+    /// This method is used to simulate multiple Quest+ Runs.
+    /// </summary>
+    /// <param name="simulationRuns">How often do we simulate.</param>
+    /// <param name="trials">How many trials does each simulation have?</param>
+    /// <param name="trueMu">Array of underlying true Mue values (Mean of the distribution) for each simulation.</param>
+    /// <param name="trueSigma">Array of underlying true Sigma values (Width of the distribution) for each simulation.</param>
+    /// <param name="trueSaturation">Array of underlying true Saturation values (upper and lower asymptote) for each simulation.</param>
+    /// <param name="steps">Array of stimuli to test.</param>
+    /// <param name="paramDomains">paramDomain for each parameter combination, expected length = length(trueMu)*length(truSigma)*length(trueSaturation)</param>
+    /// <param name="fileName">Name of the csv file, the data is saved in.</param>
+    /// <param name="path">path where result file should be located.</param>
+    void SimulateQuestPlusSaturation(int simulationRuns, int trials, float[] trueMu, float[] trueSigma, float[] trueSaturation, float[] steps, ParamDomain[] paramDomains, string fileName, string path = "")
     {
         SimulationResultsQuestPlus results = new SimulationResultsQuestPlus();
 
+        int simulationId = 0;
+
         for (int trueMuIdx = 0; trueMuIdx < trueMu.Length; trueMuIdx++)
         {
+            float mu = trueMu[trueMuIdx];
             for (int trueSigmaIdx = 0; trueSigmaIdx < trueSigma.Length; trueSigmaIdx++)
             {
+                float sigma = trueSigma[trueSigmaIdx];
                 for (int trueSaturationIdx = 0; trueSaturationIdx < trueSaturation.Length; trueSaturationIdx++)
                 {
-                    for (int trial = 0; trial < maxTrials; trial++)
+                    float saturation = trueSaturation[trueSaturationIdx];
+                    float saturationX2 = (2 * saturation);
+                    for (int simulationRun = 0; simulationRun < simulationRuns; simulationRun++)
                     {
-                        // QuestPlusRun
+                        //Debug.Log(maxTrials);
+                        bool isFinished;
+                        Debug.Log(simulationId);
+                        Properties QP = new Properties(steps, paramDomains[0], new float[2] { 0, 1 }, " ", 0, 1, trials, start_mode: "median"); // builds a new prop object containing the parameters set above
+                        QP.Init();
+                        for (int trial = 1; trial <= trials; trial++) // runs * steps = trials
+                        {
+                            //correct response comes from this:
+                            double currentStimulus = QP.getTargetStim().value;
+                            MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(mu, sigma); //define normal distribution with mu and sigma
+                            double res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(currentStimulus); //get likelihood for current stimulus from cumulative distribution with true mu, sigma and saturation
+
+                            bool response = Random.Range(0, 1f) <= res; // compare to random number between 0 and 1 to get binary response that is distributed in the same way (false = below threshold --> left, true = above threshold --> right)
+                            //bool response = 0.5f <= res; // compare to random number between 0 and 1 to get binary response that is distributed in the same way (false = below threshold --> left, true = above threshold --> right)
+
+                            //implementing the wrong response that we instructed during the experiment
+                            //if (currentStimulus<0) // if stimulus was leftward 
+                            //{
+                            //    //turn leftward stimulus to positive, to check if it crosses threshold
+                            //    normal_dist = new MathNet.Numerics.Distributions.Normal(Mathf.Abs(mu), sigma); 
+                            //    res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(Mathf.Abs((float)currentStimulus)); 
+
+                            //    if (Random.Range(0, 1f) <= res) // if stimulus was above (leftward) threshold,
+                            //    { 
+                            //        response = true; //subjects answered: left (stimulus:left, response :left --> response = true)
+
+                            //        //correction
+                            //        response = false;
+
+                            //    }else
+                            //    {
+                            //        response = false;
+                            //    }
+                            //}
+                            //else // stimulus is rightward
+                            //{
+                            //    //response stays the same
+                            //}
+
+                            isFinished = QP.UpdateEverything(response); // Update Quest+
+
+                            results.AddResult(simulationId,simulationRun, trial, response, currentStimulus, mu, QP.current_estimate_mu, sigma, QP.current_estimate_sigma, saturation, QP.current_estimate_saturation);
+                            if (isFinished)
+                            {
+                                //QP.History(fileName, path, simulationRun.ToString()); //save history data to be able to check Quest+ runs individually
+                                break;
+                            }
+                        }
+                        //updating estimated parameters for live view in editor
+                        mu_all_estimates = QP.history_estimate_mu.ToArray();
+                        sigma_all_estimates = QP.history_estimate_sigma.ToArray();
+                        stimuli = QP.history_stim.ToArray();
+                        if (QP.paramDomain.saturation.Length > 0)
+                        {
+                            saturation_all_estimates = QP.history_estimate_saturation.ToArray();
+                        }
+                        else
+                        {
+                            gamma_all_estimates = QP.history_estimate_gamma.ToArray();
+                            lambda_all_estimates = QP.history_estimate_lambda.ToArray();
+                        }
+                        responses = QP.history_resp.ToArray();
+
                     }
+                    simulationId++;
+
+                    ResetParamDomain();
                 }
             }
         }
         results.Save(fileName, path);
     }
+
+
+    /// <summary>
+    /// This method is used to simulate constant stimuli measurements.
+    /// </summary>
+    /// <param name="simulationRuns">How often do we simulate.</param>
+    /// <param name="runs">How often do we repeat the same trial in each simulation.</param>
+    /// <param name="trueMu">Array of underlying true Mue values (Mean of the distribution) for each simulation.</param>
+    /// <param name="trueSigma">Array of underlying true Sigma values (Width of the distribution) for each simulation.</param>
+    /// <param name="trueSaturation">Array of underlying true Saturation values (upper and lower asymptote) for each simulation.</param>
+    /// <param name="steps">Array of stimuli to test.</param>
+    /// <param name="fileName">Name of the csv file, the data is saved in.</param>
+    /// <param name="path">path where result file should be located.</param>
     void SimulateConstantStimuliSaturation(int simulationRuns, int runs, float[] trueMu, float[] trueSigma, float[] trueSaturation, float[] steps, string fileName, string path = "")
     {
-        SimulationResultsConstantStimuli results = new SimulationResultsConstantStimuli();
+        SimulationResultsConstantStimuli results = new();
 
+        int simulationId = 0;
 
-        for (int trueSaturationIdx = 0; trueSaturationIdx < trueSaturation.Length; trueSaturationIdx++)
+        for (int trueMuIdx = 0; trueMuIdx < trueMu.Length; trueMuIdx++)
         {
-            float saturation = trueSaturation[trueSaturationIdx];
-            float saturationX2 = (2 * saturation);
-
-            for (int trueMuIdx = 0; trueMuIdx < trueMu.Length; trueMuIdx++)
+            float mu = trueMu[trueMuIdx];
+            for (int trueSigmaIdx = 0; trueSigmaIdx < trueSigma.Length; trueSigmaIdx++)
             {
-                float mu = trueMu[trueMuIdx];
-                for (int trueSigmaIdx = 0; trueSigmaIdx < trueSigma.Length; trueSigmaIdx++)
+                float sigma = trueSigma[trueSigmaIdx];
+
+                for (int trueSaturationIdx = 0; trueSaturationIdx < trueSaturation.Length; trueSaturationIdx++)
                 {
-                    float sigma = trueSigma[trueSigmaIdx];
+                    float saturation = trueSaturation[trueSaturationIdx];
+                    float saturationX2 = (2 * saturation);
                     for (int simulationRun = 0; simulationRun < simulationRuns; simulationRun++)
                     {
-                        int trial = 0;
+                        int trial = 1;
                         for (int r = 0; r < runs; r++) // runs * steps = trials
                         {
-                            MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(mu, sigma);
+                            MathNet.Numerics.Distributions.Normal normal_dist = new MathNet.Numerics.Distributions.Normal(mu, sigma); //define normal distribution with mu and sigma
 
                             // sample constant stimuli
                             for (int stepIdx = 0; stepIdx < steps.Length; stepIdx++)
                             {
-                                double res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(steps[stepIdx]);
-                                bool response = Random.Range(0, 1f) <= res;
-                                results.AddResult(simulationRun, trial, response, steps[stepIdx], mu, sigma, saturation);
+                                double res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(steps[stepIdx]); //get likelihood for current stimulus from cumulative distribution with true mu, sigma and saturation
+                                bool response = Random.Range(0, 1f) <= res; // compare to random number between 0 and 1 to get binary response that is distributed in the same way.
+                                
+                                // in the old experiment we would have a rightward, random (below threshold), and leftward stage
+                                
+                                results.AddResult(simulationId, simulationRun, trial, response, steps[stepIdx], mu, sigma, saturation); //save data
                                 trial++;
                             }
                         }
                     }
+                    simulationId++;
                 }
             }
 
@@ -208,9 +298,12 @@ public class Simulator : MonoBehaviour
         marker_stimuli = (float)stimuli[marker_index];
     }
 }
+#if UNITY_EDITOR
 
-class SimulationResultsConstantStimuli
+
+public class SimulationResultsConstantStimuli
 {
+    public List<int> simulationIds;
     public List<int> simulationRuns;
     public List<int> trials;
     public List<bool> responses;
@@ -224,6 +317,7 @@ class SimulationResultsConstantStimuli
 
     public SimulationResultsConstantStimuli()
     {
+        this.simulationIds = new List<int>();
         this.simulationRuns = new List<int>();
         this.trials = new List<int>();
         this.responses = new List<bool>();
@@ -236,8 +330,22 @@ class SimulationResultsConstantStimuli
         this.lambdas = new List<float>();
     }
 
-    public void AddResult(int simulationRun, int trial, bool response, float stimulus, float mu, float sigma, float saturation = 0, float gamma = 0, float lambda = 0)
+    /// <summary>
+    /// This class is used to add constant stimuli results.
+    /// </summary>
+    /// <param name="simulationId">Current simulation run.</param>
+    /// <param name="simulationRun">Current simulation run.</param>
+    /// <param name="trial">Current Trial.</param>
+    /// <param name="response">Response of this trial.</param>
+    /// <param name="stimulus">Stimulus of this trial.</param>
+    /// <param name="mu">True underlying mu value.</param>
+    /// <param name="sigma">True underlying sigma value</param>
+    /// <param name="saturation">True underlying saturation value (defaults to 0).</param>
+    /// <param name="gamma">True underlying gamma value (defaults to 0).</param>
+    /// <param name="lambda">True underlying lambda value (defaults to 0).</param>
+    public void AddResult(int simulationId,int simulationRun, int trial, bool response, float stimulus, float mu, float sigma, float saturation = 0, float gamma = 0, float lambda = 0)
     {
+        simulationIds.Add(simulationId);
         simulationRuns.Add(simulationRun);
         trials.Add(trial);
         responses.Add(response);
@@ -250,6 +358,11 @@ class SimulationResultsConstantStimuli
         lambdas.Add(lambda);
     }
 
+    /// <summary>
+    /// This class is used to save constant stimuli results.
+    /// </summary>
+    /// <param name="fileName">name of the file will be [fileName].csv.</param>
+    /// <param name="path">path to file (empty defaults to persistent) .</param>
     public void Save(string fileName, string path = "")
     {
         Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
@@ -259,25 +372,32 @@ class SimulationResultsConstantStimuli
             path = Application.persistentDataPath;
         }
 
-        string header = "simulationRun,trial,response,stimulus,trueMu,trueSigma,trueSaturation,trueGamma,trueLambda\n "; // would be really nice to also fit psychometric function in C# to these results, but there is no simple library providing this, and I am too lazy to reimplement psignifit in c# atm
+        string header = "simulationId,simulationRun,trial,response,stimulus,trueMu,trueSigma,trueSaturation,trueGamma,trueLambda\n"; // would be really nice to also fit psychometric function in C# to these results, but there is no simple library providing this, and I am too lazy to reimplement psignifit in c# atm
         string file = "" + header;
 
-        for (int i = 0; i < simulationRuns.Count; i++)
+        for (int i = 0; i < simulationIds.Count; i++)
         {
-            file = file + $"{this.simulationRuns[i]},{this.trials[i]},{this.responses[i]},{this.stimuli[i]},{this.mus[i]},{this.sigmas[i]},{this.saturations[i]},{this.gammas[i]},{this.lambdas[i]}\n";
+            file = file + $"{this.simulationIds[i]},{this.simulationRuns[i]},{this.trials[i]},{this.responses[i]},{this.stimuli[i]},{this.mus[i]},{this.sigmas[i]},{this.saturations[i]},{this.gammas[i]},{this.lambdas[i]}\n";
+        }
+        if (path == "")
+        {
+            path = Application.persistentDataPath;
         }
 
         File.WriteAllText(path + "/" + fileName + ".csv", file);
         Debug.Log("Constant Stimuli Simulation results saved to: " + path + "/" + fileName);
     }
 }
+#endif
+
 
 class SimulationResultsQuestPlus
 {
+    public List<int> simulationIds;
     public List<int> simulationRuns;
     public List<int> trials;
     public List<bool> responses;
-    public List<float> stimuli;
+    public List<double> stimuli;
 
     public List<float> mus;
     public List<float> sigmas;
@@ -285,18 +405,19 @@ class SimulationResultsQuestPlus
     public List<float> gammas;
     public List<float> lambdas;
 
-    public List<float> QpMus;
-    public List<float> QpSigmas;
-    public List<float> QpSaturations;
-    public List<float> QpGammas;
-    public List<float> QpLambdas;
+    public List<double> QpMus;
+    public List<double> QpSigmas;
+    public List<double> QpSaturations;
+    public List<double> QpGammas;
+    public List<double> QpLambdas;
 
     public SimulationResultsQuestPlus()
     {
+        this.simulationIds = new List<int>();
         this.simulationRuns = new List<int>();
         this.trials = new List<int>();
         this.responses = new List<bool>();
-        this.stimuli = new List<float>();
+        this.stimuli = new List<double>();
 
         this.mus = new List<float>();
         this.sigmas = new List<float>();
@@ -304,15 +425,34 @@ class SimulationResultsQuestPlus
         this.gammas = new List<float>();
         this.lambdas = new List<float>();
 
-        this.QpMus = new List<float>();
-        this.QpSigmas = new List<float>();
-        this.QpSaturations = new List<float>();
-        this.QpGammas = new List<float>();
-        this.QpLambdas = new List<float>();
+        this.QpMus = new List<double>();
+        this.QpSigmas = new List<double>();
+        this.QpSaturations = new List<double>();
+        this.QpGammas = new List<double>();
+        this.QpLambdas = new List<double>();
     }
 
-    public void AddResult(int simulationRun, int trial, bool response, float stimulus, float mu, float currentMu, float sigma, float currentSigma, float saturation = 0, float currentSaturation = 0)
+    /// <summary>
+    /// This class is used to add Quest+ results.
+    /// </summary>
+    /// <param name="simulationId">Current simulation id.</param>
+    /// <param name="simulationRun">Current simulation run.</param>
+    /// <param name="trial">Current Trial.</param>
+    /// <param name="response">Response of this trial.</param>
+    /// <param name="stimulus">Stimulus of this trial.</param>
+    /// <param name="mu">True underlying mu value.</param>
+    /// <param name="currentMu">estimated mu value of this trial.</param>
+    /// <param name="sigma">True underlying sigma value</param>
+    /// <param name="currentSigma">estimated sigma value of this trial.</param>
+    /// <param name="saturation">True underlying saturation value (defaults to 0).</param>
+    /// <param name="currentSaturation">estimated saturation value of this trial.</param>
+    /// <param name="gamma">True underlying gamma value (defaults to 0).</param>
+    /// <param name="currentGamma">estimated gamma value of this trial (defaults to 0).</param>
+    /// <param name="lambda">True underlying lambda value (defaults to 0).</param>
+    /// <param name="currentLambda">estimated lambda value of this trial (defaults to 0).</param>
+    public void AddResult(int simulationId,int simulationRun, int trial, bool response, double stimulus, float mu, double currentMu, float sigma, double currentSigma, float saturation = 0, double currentSaturation = 0, float gamma = 0, double currentGamma = 0, float lambda = 0, double currentLambda = 0)
     {
+        simulationIds.Add(simulationId);
         simulationRuns.Add(simulationRun);
         trials.Add(trial);
         responses.Add(response);
@@ -321,30 +461,21 @@ class SimulationResultsQuestPlus
         mus.Add(mu);
         sigmas.Add(sigma);
         saturations.Add(saturation);
-
-        QpMus.Add(currentMu);
-        QpSigmas.Add(currentSigma);
-        QpSaturations.Add(currentSaturation);
-    }
-
-    public void AddResult(int simulationRun, int trial, bool response, float stimulus, float mu, float currentMu, float sigma, float currentSigma, float gamma = 0, float currentGamma = 0, float lambda = 0, float currentLambda = 0)
-    {
-        simulationRuns.Add(simulationRun);
-        trials.Add(trial);
-        responses.Add(response);
-        stimuli.Add(stimulus);
-
-        mus.Add(mu);
-        sigmas.Add(sigma);
         gammas.Add(gamma);
         lambdas.Add(lambda);
 
         QpMus.Add(currentMu);
         QpSigmas.Add(currentSigma);
+        QpSaturations.Add(currentSaturation);
         QpGammas.Add(currentGamma);
         QpLambdas.Add(currentLambda);
     }
 
+    /// <summary>
+    /// This class is used to save Quest+ results.
+    /// </summary>
+    /// <param name="fileName">name of the file will be [fileName].csv.</param>
+    /// <param name="path">path to file (empty defaults to persistent) .</param>
     public void Save(string fileName, string path = "")
     {
         Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
@@ -354,14 +485,13 @@ class SimulationResultsQuestPlus
             path = Application.persistentDataPath;
         }
 
-        string header = "simulationRun,trial,response,stimulus,trueMu,trueSigma,trueSaturation,trueGamma,trueLambda,estimatedMu,estimatedSigma,estimatedSaturation,estimatedGamma,estimatedLambda\n ";
+        string header = "simulationId,simulationRun,trial,response,stimulus,trueMu,trueSigma,trueSaturation,trueGamma,trueLambda,estimatedMu,estimatedSigma,estimatedSaturation,estimatedGamma,estimatedLambda\n";
         string file = "" + header;
 
-        for (int i = 0; i < simulationRuns.Count; i++)
+        for (int i = 0; i < simulationIds.Count; i++)
         {
-            file = file + $"{this.simulationRuns[i]},{this.trials[i]},{this.responses[i]},{this.stimuli[i]},{this.mus[i]},{this.sigmas[i]},{this.saturations[i]},{this.gammas[i]},{this.lambdas[i]},{this.QpMus[i]},{this.QpSigmas[i]},,{this.QpSaturations[i]},{this.QpGammas[i]},,{this.QpLambdas[i]}\n";
+            file = file + $"{this.simulationIds[i]},{this.simulationRuns[i]},{this.trials[i]},{this.responses[i]},{this.stimuli[i]},{this.mus[i]},{this.sigmas[i]},{this.saturations[i]},{this.gammas[i]},{this.lambdas[i]},{this.QpMus[i]},{this.QpSigmas[i]},{this.QpSaturations[i]},{this.QpGammas[i]},{this.QpLambdas[i]}\n";
         }
-
         File.WriteAllText(path + "/" + fileName + ".csv", file);
         Debug.Log("QuestPlus Simulation results saved to: " + path + "/" + fileName);
     }
@@ -369,7 +499,6 @@ class SimulationResultsQuestPlus
 
 
 #if UNITY_EDITOR
-
 [CustomEditor(typeof(Simulator))]
 [CanEditMultipleObjects]
 
@@ -643,5 +772,4 @@ public class SimulatorEditor : Editor
         }
     }
 }
-
 #endif

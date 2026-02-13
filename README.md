@@ -5,12 +5,16 @@ https://github.com/petejonze/QuestPlus
 to be able to use Quest+ in Unity for psychphysical VR experiments.
 
 
-# Quick Start
+
+# Quick Start & Requirements
 1) Download the repository and import it into your Unity project.
-2) Attach Simulator.cs to an empty GameObject in your scene.
-3) Run the scene and observe the results in the console and the interactive plots in the editor
-4) Modify the parameters of the Simulator.cs script to test different scenarios, such as changing the true parameters of the simulated participant, or changing the parameter domain.
-5) Once you are comfortable with the algorithm, you can modify the Simulator.cs script to use real participant responses instead of simulated ones, and run your experiment.
+2) Install nuget unitypackage either from this repo or from: https://github.com/GlitchEnzo/NuGetForUnity/releases
+3) Restart Unity
+4) In the menu go to nuget -> manage nuget packages and install the following packages: MathNet.Numerics
+5) Use the Simulator Prefab or attach Simulator.cs to an empty GameObject in your scene.
+6) Run the scene and observe the results in the console and the interactive plots in the editor. The Simulation is run in the Start function, so don't worry if Unity seems to not respond when you chose a lot of parameters. It will respond again as soon as the simulation is done. 
+7) Modify the parameters of the Simulator.cs script to test different scenarios, such as changing the true parameters of the simulated participant, or changing the parameter domain.
+8) Once you are comfortable with the algorithm, you can modify the Simulator.cs script to use real participant responses instead of simulated ones, and run your experiment.
 
 
 ## Simulator

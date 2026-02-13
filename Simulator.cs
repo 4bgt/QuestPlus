@@ -90,10 +90,8 @@ public class Simulator : MonoBehaviour
         string stopRule = "stdev"; // stop rule used to force the end of the presentation-update-cycle that estimates the subjects probable mu-value. Currently only the standard error as a stop rule is supported
         float stopCriterion = Mathf.PI / 120; // The value corresponding to the aforementioned stop rule 
 
-        ResetParamDomain();
-
-        float minNTrials = 1; // the minimum amount of run trials before aborting measurement
-        float maxNTrials = 100; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
+        int minNTrials = 1; // the minimum amount of run trials before aborting measurement
+        int maxNTrials = 20; // if the stop rule "maxtrials" is used, maxNTrials is used to determine the maximum amount of trials
 
         float mu_start = 0f; // when estimating the true mu value, a starting point for this mu has to be given
         float mu_end = 0.21f; // also, an end point has to be given, to form the range of possible mu values
@@ -124,6 +122,9 @@ public class Simulator : MonoBehaviour
         ParamDomain paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu
         QPProperties.Add(new Properties(stimDomain, paramDomain, respDomain, stopRule, stopCriterion, minNTrials, maxNTrials)); // builds a new prop object containing the parameters set above
 
+        ResetParamDomain();
+
+
         QPProperties.Last().Init(); // used to initialise the mu measurement pipeline by creating likelihood and prior probabilities
         TargetStimulus currentStimulus = new TargetStimulus();
 
@@ -135,7 +136,7 @@ public class Simulator : MonoBehaviour
         //{
         //    SimulateConstantStimuliSaturation(30, r, new float[] { -0.1f,0.1f }, new float[] { 0.001f,0.1f,0.2f,1 }, new float[] { true_saturation }, stimDomain, "constantStimuliReportingError"+r, Application.persistentDataPath);
         //}
-        SimulateQuestPlusSaturation(30, maxNTrials, new float[] { 0, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f, 0.09f, 0.1f, 0.11f, 0.12f, 0.13f, 0.14f, 0.15f, 0.2f }, new float[] { 0.001f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1 }, new float[] { true_saturation }, stimDomain, paramDomains, "Quest+", Application.persistentDataPath);
+        SimulateQuestPlusSaturation(1, maxNTrials, new float[] { 0, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f, 0.09f, 0.1f, 0.11f, 0.12f, 0.13f, 0.14f, 0.15f, 0.2f }, new float[] { 0.001f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1 }, new float[] { 0.001f, 0.1f, 0.2f, 0.3f }, stimDomain, paramDomains, "Quest+", Application.persistentDataPath);
     }
 
     void ResetParamDomain()
@@ -161,7 +162,8 @@ public class Simulator : MonoBehaviour
         saturation_end = 0.05f;
         saturation_steps = 1;
         //save data to csv
-        QPProperties.Last().History("Testdaten_mu0_4_sigma0_4");
+        QPProperties.Last().History("Testdaten_mu0_4_sigma0_4",Application.persistentDataPath);
+        Debug.Log("Saving to csv: " + Application.persistentDataPath + "/Testdaten_mu0_4_sigma0_4.csv");
 
 
         paramDomain = new ParamDomain(mu_start, mu_end, mu_steps, sigma_start, sigma_end, sigma_steps, saturation_start, saturation_end, saturation_steps); // parameter domain // includes all values that go into the cumulative distribution function used to estimate mu

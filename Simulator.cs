@@ -35,7 +35,7 @@ public class Simulator : MonoBehaviour
 
     public float true_mu = -0.1f;
     public float true_sigma = 0.1f;
-    public float true_saturation = 0.05f; //0.06 als Empfehlung
+    public float true_saturation = 0.05f;
     public float true_gamma = 0.5f;
     public float true_lambda = 0.03f;
 

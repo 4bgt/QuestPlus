@@ -44,7 +44,7 @@ public class ParamDomain
         this.Length = mu.Length * sigma.Length * saturation.Length * gamma.Length * lambda.Length;
     }
 
-    public ParamDomain(float mu, float mu_end, int mu_steps, float sigma = 1, float sigma_end = 1, int sigma_steps = 1, float gamma = 0, float gamma_end = 0, int gamma_steps = 1, float lambda = 0, float lambda_end = 0, int lambda_steps = 1) //fraglich, hier muss das Design aus Matlab eingebaut werden
+    public ParamDomain(float mu, float mu_end, int mu_steps, float sigma = 1, float sigma_end = 1, int sigma_steps = 1, float gamma = 0, float gamma_end = 0, int gamma_steps = 1, float lambda = 0, float lambda_end = 0, int lambda_steps = 1) 
     {
         (this.mu_start, this.mu_end, this.mu_steps, this.mu) = FillArray(mu, mu_end, mu_steps);
 
@@ -58,7 +58,7 @@ public class ParamDomain
         this.Length = this.mu.Length * this.sigma.Length  * this.gamma.Length * this.lambda.Length;
     }
 
-    public ParamDomain(float mu, float mu_end, int mu_steps, float sigma = 1, float sigma_end = 1, int sigma_steps = 1, float saturation = 1, float saturation_end = 0, int saturation_steps = 1) //fraglich, hier muss das Design aus Matlab eingebaut werden
+    public ParamDomain(float mu, float mu_end, int mu_steps, float sigma = 1, float sigma_end = 1, int sigma_steps = 1, float saturation = 1, float saturation_end = 0, int saturation_steps = 1)
     {
         (this.mu_start, this.mu_end, this.mu_steps, this.mu) = FillArray(mu, mu_end, mu_steps);
 

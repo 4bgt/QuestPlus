@@ -128,15 +128,8 @@ public class Simulator : MonoBehaviour
         QPProperties.Last().Init(); // used to initialise the mu measurement pipeline by creating likelihood and prior probabilities
         TargetStimulus currentStimulus = new TargetStimulus();
 
-        bool isFinished = false;
-        bool response;
-        int counter = 0;
 
-        //for (int r = 1; r <= 4; r++)
-        //{
-        //    SimulateConstantStimuliSaturation(30, r, new float[] { -0.1f,0.1f }, new float[] { 0.001f,0.1f,0.2f,1 }, new float[] { true_saturation }, stimDomain, "constantStimuliReportingError"+r, Application.persistentDataPath);
-        //}
-        SimulateQuestPlusSaturation(1, maxNTrials, new float[] { 0, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f, 0.09f, 0.1f, 0.11f, 0.12f, 0.13f, 0.14f, 0.15f, 0.2f }, new float[] { 0.001f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 1 }, new float[] { 0.001f, 0.1f, 0.2f, 0.3f }, stimDomain, paramDomains, "Quest+", Application.persistentDataPath);
+        SimulateQuestPlusSaturation(1, maxNTrials, new float[] { true_mu }, new float[] { true_sigma }, new float[] { true_saturation}, stimDomain, paramDomains, "Quest+", Application.persistentDataPath);
     }
 
     void ResetParamDomain()
@@ -214,31 +207,6 @@ public class Simulator : MonoBehaviour
                             double res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(currentStimulus); //get likelihood for current stimulus from cumulative distribution with true mu, sigma and saturation
 
                             bool response = Random.Range(0, 1f) <= res; // compare to random number between 0 and 1 to get binary response that is distributed in the same way (false = below threshold --> left, true = above threshold --> right)
-                            //bool response = 0.5f <= res; // compare to random number between 0 and 1 to get binary response that is distributed in the same way (false = below threshold --> left, true = above threshold --> right)
-
-                            //implementing the wrong response that we instructed during the experiment
-                            //if (currentStimulus<0) // if stimulus was leftward 
-                            //{
-                            //    //turn leftward stimulus to positive, to check if it crosses threshold
-                            //    normal_dist = new MathNet.Numerics.Distributions.Normal(Mathf.Abs(mu), sigma); 
-                            //    res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(Mathf.Abs((float)currentStimulus)); 
-
-                            //    if (Random.Range(0, 1f) <= res) // if stimulus was above (leftward) threshold,
-                            //    { 
-                            //        response = true; //subjects answered: left (stimulus:left, response :left --> response = true)
-
-                            //        //correction
-                            //        response = false;
-
-                            //    }else
-                            //    {
-                            //        response = false;
-                            //    }
-                            //}
-                            //else // stimulus is rightward
-                            //{
-                            //    //response stays the same
-                            //}
 
                             isFinished = QP.UpdateEverything(response); // Update Quest+
 
@@ -315,8 +283,6 @@ public class Simulator : MonoBehaviour
                             {
                                 double res = saturation + (1 - saturationX2) * (double)normal_dist.CumulativeDistribution(steps[stepIdx]); //get likelihood for current stimulus from cumulative distribution with true mu, sigma and saturation
                                 bool response = Random.Range(0, 1f) <= res; // compare to random number between 0 and 1 to get binary response that is distributed in the same way.
-                                
-                                // in the old experiment we would have a rightward, random (below threshold), and leftward stage
                                 
                                 results.AddResult(simulationId, simulationRun, trial, response, steps[stepIdx], mu, sigma, saturation); //save data
                                 trial++;

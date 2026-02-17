@@ -18,24 +18,24 @@ to be able to use Quest+ in Unity for psychphysical VR experiments.
 
 
 # How to use it
-1) Build a new Properties object
+Build a new Properties object
       
-      Properties QP = new Properties(stimulusDomain, parameterDomain, responseDomain, stopRule, stopCriterion, minNTrials, maxNTrials);
-2) Initialize it
+    Properties QP = new Properties(stimulusDomain, parameterDomain, responseDomain, stopRule, stopCriterion, minNTrials, maxNTrials)
+Initialize it
     
-    QP.Init();
-3) Get current stimulus value
+    QP.Init()
+Get current stimulus value
 
-    QP.getTargetStim().value;
-4) Insert the response to this stimulus (bool) and go back to 3) to get the next stimulus
+    QP.getTargetStim().value
+Insert the response to this stimulus (bool) and go back to previous step to get the next stimulus
 
-    bool _isFinished = QP.UpdateEverything(response);
-5) If finished, save results
+    bool _isFinished = QP.UpdateEverything(response)
+If finished, save results
 
-    QP.History(fileName, path);
-6) Reset Paramdomain for new QuestRun
+    QP.History(fileName, path)
+Reset Paramdomain for new QuestRun
 
-    ResetParamDomain();
+    ResetParamDomain()
 
 ## Simulator
 The Simulator class is hopefully a useful example class to understand how to use this package.

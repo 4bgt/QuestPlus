@@ -4,6 +4,11 @@ It is basically a re-implementation of this Matlab repo:
 https://github.com/petejonze/QuestPlus
 to be able to use Quest+ in Unity for psychphysical VR experiments.
 
+If you use this package please consider citing these papers:
+
+Andrew B. Watson; QUEST+: A general multidimensional Bayesian adaptive psychometric method. Journal of Vision 2017;17(3):10. https://doi.org/10.1167/17.3.10.
+
+Hypki, N., Anvari, T. Steinicke, F. Lappe, M.; Long-term Adaptation in VR: Retention of Altered Sensorimotor Contingencies through Redirected Walking 2026; IEEE Conference on Virtual Reality and 3D User Interfaces (IEEE VR)
 
 
 # Quick Start & Requirements
